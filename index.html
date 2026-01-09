@@ -17,45 +17,46 @@
     </style>
 </head>
 <body>
-    <div id="alerta" class="alerta-header">⚠️ ¡ATENCIÓN! INCENDIO DETECTADO DENTRO DE LA CONCESIÓN PAXBÁN ⚠️</div>
-    <div id="map"></div>
+<div style="background: white; color: black; padding: 10px; position: absolute; top: 100px; left: 20px; z-index: 1000; border-radius: 5px; border: 2px solid #333;">
+    <strong>Filtros:</strong><br>
+    <input type="checkbox" id="verRegionales" checked onchange="actualizarVista()"> Ver puntos regionales<br>
+    <input type="checkbox" id="verSatelite" onchange="cambiarBase()"> Mapa Satélite
+</div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // Centrar mapa en Paxbán
-        var map = L.map('map').setView([17.71, -90.15], 9);
+<script>
+    var capaBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    var sateliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+    
+    var marcadores = L.layerGroup().addTo(map);
 
-        // Capa de mapa (puedes cambiar a satélite luego si quieres)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        // Dibujar el polígono de Paxbán
-        var limites = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8148, -90.0001], [17.8122, -90.3316]];
-        L.polygon(limites, {color: 'yellow', fillOpacity: 0.1, weight: 2}).addTo(map).bindPopup("Concesión Paxbán");
-
-        // Cargar los puntos de calor
-        // Usamos Date.now() para que no se guarde en caché y siempre sea nuevo
+    function actualizarVista() {
+        marcadores.clearLayers();
         fetch('incendios.json?v=' + Date.now())
             .then(res => res.json())
             .then(data => {
                 data.forEach(p => {
-                    var critico = p.alerta === true;
+                    if (!document.getElementById('verRegionales').checked && !p.alerta) return;
                     
                     L.circleMarker([p.lat, p.lon], {
-                        radius: critico ? 12 : 8, // Más grande si es en Paxbán
+                        radius: p.alerta ? 12 : 7,
                         fillColor: "red",
-                        color: "yellow", // Borde amarillo para resaltar
+                        color: p.alerta ? "yellow" : "white",
                         weight: 2,
                         fillOpacity: 0.9
-                    }).addTo(map).bindPopup(critico ? "<b>INCENDIO EN PAXBÁN</b>" : "Calor Regional Detectado");
-
-                    if(critico) {
-                        document.getElementById('alerta').style.display = 'block';
-                    }
+                    }).addTo(marcadores).bindPopup(p.alerta ? "<b>EMERGENCIA PAXBÁN</b>" : "Calor Regional");
                 });
-            })
-            .catch(err => console.log("Esperando datos de incendios..."));
-    </script>
+            });
+    }
+
+    function cambiarBase() {
+        if(document.getElementById('verSatelite').checked) {
+            map.removeLayer(capaBase);
+            sateliteLayer.addTo(map);
+        } else {
+            map.removeLayer(sateliteLayer);
+            capaBase.addTo(map);
+        }
+    }
+</script>
 </body>
 </html>
