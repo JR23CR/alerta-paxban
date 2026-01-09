@@ -4,6 +4,7 @@ from shapely.geometry import shape, Point
 
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
+# Coordenadas de Paxbán
 paxban_coords = [
     [-90.33168791599998, 17.81225585600004], [-90.33346564299997, 17.81220859700005],
     [-90.37767796599996, 17.81153471800008], [-90.384658792, 17.81174332600006],
@@ -12,22 +13,19 @@ paxban_coords = [
     [-89.99982446899998, 17.72545861100002], [-89.99961081899994, 17.81487795600003],
     [-90.00011450699998, 17.81487812100005], [-90.33168791599998, 17.81225585600004]
 ]
-
 paxban_poly = shape({"type": "Polygon", "coordinates": [paxban_coords]})
 
 def obtener_incendios():
-    # Lista de satélites para máxima cobertura:
-    # 1. SUOMI_VIIRS_C2 (Muy preciso)
-    # 2. J1_VIIRS_C2 (Satélite NOAA-20, complementario)
-    satelites = ["SUOMI_VIIRS_C2", "J1_VIIRS_C2"]
-    dias = "2" # "1" para 24h, "2" para 48h
+    # Consultamos los 3 satélites VIIRS para no perder ningún detalle
+    satelites = ["SUOMI_VIIRS_C2", "J1_VIIRS_C2", "J2_VIIRS_C2"]
+    intervalo = "2" # "2" significa últimas 48 horas para que el mapa se vea lleno
     
-    puntos_totales = []
+    todos_los_puntos = []
     
     for sat in satelites:
-        url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-93,14,-88,19/{dias}"
+        # Área amplia de Petén y alrededores
+        url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-92,16,-89,18.5/{intervalo}"
         try:
-            print(f"Consultando satélite {sat}...")
             res = requests.get(url, timeout=30)
             if res.status_code == 200:
                 lineas = res.text.strip().split('\n')
@@ -35,18 +33,19 @@ def obtener_incendios():
                     for linea in lineas[1:]:
                         col = linea.split(',')
                         lat, lon = float(col[0]), float(col[1])
-                        esta_dentro = paxban_poly.contains(Point(lon, lat))
-                        puntos_totales.append({
+                        # Verificamos si cae en Paxbán
+                        es_paxban = paxban_poly.contains(Point(lon, lat))
+                        todos_los_puntos.append({
                             "lat": lat, "lon": lon, 
-                            "alerta": esta_dentro,
-                            "sat": sat # Guardamos qué satélite lo vio
+                            "alerta": es_paxban,
+                            "sat": sat
                         })
         except: continue
 
     with open('incendios.json', 'w', encoding='utf-8') as f:
-        json.dump(puntos_totales, f, indent=2)
+        json.dump(todos_los_puntos, f, indent=2)
     
-    print(f"✅ Proceso terminado. Se encontraron {len(puntos_totales)} puntos en total.")
+    print(f"✅ ¡Barrido completo! {len(todos_los_puntos)} puntos detectados.")
 
 if __name__ == "__main__":
     obtener_incendios()
