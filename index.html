@@ -2,54 +2,60 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Monitor Regional - Paxbán</title>
+    <title>Monitor Satelital - Paxbán</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #map { height: 700px; width: 100%; border: 2px solid #333; }
-        body { font-family: sans-serif; margin: 0; padding: 20px; background: #f4f4f4; }
-        .alerta-paxban { 
-            background: #ff0000; color: white; padding: 15px; 
-            border-radius: 8px; margin-bottom: 10px; display: none;
-            text-align: center; font-weight: bold; font-size: 1.2em;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            animation: parpadeo 1s infinite;
+        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #222; color: white; }
+        #map { height: 750px; width: 100%; border: 2px solid #555; border-radius: 10px; }
+        .alerta-header { 
+            background: #d40000; color: white; padding: 15px; 
+            display: none; text-align: center; font-weight: bold; 
+            margin-bottom: 10px; border-radius: 5px; border: 2px solid yellow;
+            animation: flash 1s infinite;
         }
-        @keyframes parpadeo { 0% {opacity: 1;} 50% {opacity: 0.5;} 100% {opacity: 1;} }
+        @keyframes flash { 0% {opacity: 1;} 50% {opacity: 0.6;} 100% {opacity: 1;} }
     </style>
 </head>
 <body>
-    <div id="alerta" class="alerta-paxban">⚠️ ¡EMERGENCIA! INCENDIO DETECTADO DENTRO DE PAXBÁN ⚠️</div>
+    <div id="alerta" class="alerta-header">⚠️ ¡ATENCIÓN! INCENDIO DETECTADO DENTRO DE LA CONCESIÓN PAXBÁN ⚠️</div>
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // Centrar mapa en Paxbán
         var map = L.map('map').setView([17.71, -90.15], 9);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // Dibujar el límite de Paxbán
-        var areaPaxban = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8148, -90.0001], [17.8122, -90.3316]];
-        L.polygon(areaPaxban, {color: 'yellow', fillOpacity: 0.1}).addTo(map).bindPopup("Concesión Paxbán");
+        // Capa de mapa (puedes cambiar a satélite luego si quieres)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
 
-        // Cargar puntos de calor
-        fetch('incendios.json')
+        // Dibujar el polígono de Paxbán
+        var limites = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8148, -90.0001], [17.8122, -90.3316]];
+        L.polygon(limites, {color: 'yellow', fillOpacity: 0.1, weight: 2}).addTo(map).bindPopup("Concesión Paxbán");
+
+        // Cargar los puntos de calor
+        // Usamos Date.now() para que no se guarde en caché y siempre sea nuevo
+        fetch('incendios.json?v=' + Date.now())
             .then(res => res.json())
-            .then(puntos => {
-                puntos.forEach(p => {
-                    var esCritico = p.alerta === true;
+            .then(data => {
+                data.forEach(p => {
+                    var critico = p.alerta === true;
                     
                     L.circleMarker([p.lat, p.lon], {
-                        radius: esCritico ? 10 : 5,
-                        fillColor: esCritico ? "red" : "orange",
-                        color: "white",
-                        weight: 1,
-                        fillOpacity: 0.8
-                    }).addTo(map).bindPopup(esCritico ? "<b>¡INCENDIO EN PAXBÁN!</b>" : "Punto de calor regional");
+                        radius: critico ? 12 : 8, // Más grande si es en Paxbán
+                        fillColor: "red",
+                        color: "yellow", // Borde amarillo para resaltar
+                        weight: 2,
+                        fillOpacity: 0.9
+                    }).addTo(map).bindPopup(critico ? "<b>INCENDIO EN PAXBÁN</b>" : "Calor Regional Detectado");
 
-                    if(esCritico) {
+                    if(critico) {
                         document.getElementById('alerta').style.display = 'block';
                     }
                 });
-            });
+            })
+            .catch(err => console.log("Esperando datos de incendios..."));
     </script>
 </body>
 </html>
