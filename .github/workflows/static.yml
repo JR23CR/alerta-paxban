@@ -1,0 +1,51 @@
+name: Monitor y Deploy Paxban
+
+on:
+  push:
+    branches: ["main"]
+  schedule:
+    - cron: '0 * * * *' # Ejecuta el detector cada hora automáticamente
+  workflow_dispatch:
+
+permissions:
+  contents: write # Necesario para guardar los datos de incendios
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  monitor-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Instalar dependencias
+        run: pip install requests shapely
+
+      - name: Ejecutar Detector de Incendios
+        run: python actualizar_paxban.py 
+        # Este script generará el archivo 'incendios.json'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
