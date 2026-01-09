@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Monitor de Incendios - Paxbán</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 600px; width: 100%; border: 2px solid orange; }
+        body { font-family: sans-serif; margin: 20px; }
+        .alerta-panel { background: #ffeded; padding: 10px; border-radius: 5px; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+    <h2>Sistema de Alerta: Concesión Paxbán</h2>
+    <div id="alerta" class="alerta-panel">⚠️ <strong>ALERTA:</strong> Se ha detectado un punto de calor dentro del área delimitada.</div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inicializar el mapa centrado en Paxbán
+        var map = L.map('map').setView([17.70, -90.18], 10);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Los datos de tu GeoJSON (Paxbán)
+        var datosPaxban = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon", // Cambiamos a Polygon para que se pueda rellenar
+                "coordinates": [[
+                    [-90.3316, 17.8122], [-90.3334, 17.8122], [-90.3776, 17.8115],
+                    [-90.3846, 17.8117], [-90.3781, 17.6018], [-90.3275, 17.6269],
+                    [-90.2594, 17.6398], [-90.1440, 17.7012], [-89.9998, 17.7254],
+                    [-89.9996, 17.8148], [-90.0001, 17.8148], [-90.3316, 17.8122]
+                ]]
+            }
+        };
+
+        // Dibujar Paxbán en el mapa con línea amarilla
+        L.geoJSON(datosPaxban, {
+            style: { color: 'yellow', weight: 3, fillOpacity: 0.2 }
+        }).addTo(map).bindPopup("Área de Concesión Paxbán");
+
+        // EJEMPLO: Marcador de incendio (Esto lo automatizaremos con la API de la NASA)
+        // Si hay un punto de calor detectado cerca de Paxbán
+        var incendioEjemplo = L.marker([17.75, -90.15]).addTo(map)
+            .bindPopup("<b>Fuego Detectado</b><br>Intensidad: Alta").openPopup();
+    </script>
+</body>
+</html>
