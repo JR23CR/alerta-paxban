@@ -2,78 +2,115 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Monitor PRO Paxbán</title>
+    <title>Monitor Profesional Paxbán</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; }
         #map { height: 100vh; width: 100%; }
-        .controles { 
-            position: absolute; top: 10px; right: 10px; z-index: 1000; 
-            background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px;
+        .panel-filtros {
+            position: absolute; top: 20px; left: 60px; z-index: 1000;
+            background: rgba(0,0,0,0.85); color: white; padding: 20px;
+            border-radius: 10px; border: 1px solid #444; width: 220px;
         }
-        .alerta-roja {
-            position: absolute; top: 0; width: 100%; background: red; color: white;
-            text-align: center; padding: 10px; font-weight: bold; z-index: 2000; display: none;
+        .panel-filtros h3 { margin-top: 0; color: #ffcc00; font-size: 16px; }
+        .filtro-seccion { margin-bottom: 15px; border-top: 1px solid #333; padding-top: 10px; }
+        label { display: block; margin: 5px 0; font-size: 13px; cursor: pointer; }
+        .alerta-activa {
+            position: absolute; top: 0; width: 100%; background: #ff0000;
+            color: white; text-align: center; padding: 10px; font-weight: bold;
+            z-index: 2000; display: none; animation: flash 1s infinite;
         }
+        @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
     </style>
 </head>
 <body>
-    <div id="msgAlerta" class="alerta-roja">🔥 ¡ALERTA CRÍTICA: FUEGO EN PAXBÁN! 🔥</div>
+
+<div id="banner" class="alerta-activa">🚨 ATENCIÓN: INCENDIO DETECTADO EN ÁREA DE PAXBÁN 🚨</div>
+
+<div class="panel-filtros">
+    <h3>FILTROS DE MONITOREO</h3>
     
-    <div class="controles">
-        <strong>VISTA DE MONITOREO</strong><br><br>
-        <label><input type="checkbox" id="checkSatelite" onchange="switchMap()"> Ver Satélite</label><br>
-        <label><input type="checkbox" checked id="checkRegionales" onchange="cargarPuntos()"> Ver puntos regionales</label>
+    <div class="filtro-seccion">
+        <strong>Tiempo:</strong>
+        <select id="filtroTiempo" onchange="cargarPuntos()" style="width: 100%; margin-top:5px;">
+            <option value="1">Últimas 24 Horas</option>
+            <option value="2" selected>Últimas 48 Horas</option>
+            <option value="3">Últimos 3 Días</option>
+        </select>
     </div>
 
-    <div id="map"></div>
+    <div class="filtro-seccion">
+        <strong>Satélites:</strong>
+        <label><input type="checkbox" id="sat_suomi" checked onchange="cargarPuntos()"> VIIRS (Suomi NPP)</label>
+        <label><input type="checkbox" id="sat_j1" checked onchange="cargarPuntos()"> VIIRS (NOAA-20)</label>
+        <label><input type="checkbox" id="sat_j2" checked onchange="cargarPuntos()"> VIIRS (NOAA-21)</label>
+    </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        var map = L.map('map').setView([17.71, -90.15], 9);
-        
-        var calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-        var satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
-        
-        var capaPuntos = L.layerGroup().addTo(map);
+    <div class="filtro-seccion">
+        <strong>Capas:</strong>
+        <label><input type="checkbox" id="verRegionales" checked onchange="cargarPuntos()"> Ver puntos fuera de Paxbán</label>
+        <label><input type="checkbox" id="verSatelite" onchange="cambiarBase()"> Vista Satelital</label>
+    </div>
+</div>
 
-        function switchMap() {
-            if(document.getElementById('checkSatelite').checked) {
-                map.removeLayer(calles); satelite.addTo(map);
-            } else {
-                map.removeLayer(satelite); calles.addTo(map);
-            }
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    var map = L.map('map').setView([17.71, -90.15], 9);
+    var baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    var baseSatelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+    
+    var capaPuntos = L.layerGroup().addTo(map);
+
+    // Dibujar Paxbán
+    var limites = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8122, -90.3316]];
+    L.polygon(limites, {color: 'yellow', fillOpacity: 0.1, weight: 2}).addTo(map);
+
+    function cambiarBase() {
+        if(document.getElementById('verSatelite').checked) {
+            map.removeLayer(baseOSM); baseSatelite.addTo(map);
+        } else {
+            map.removeLayer(baseSatelite); baseOSM.addTo(map);
         }
+    }
 
-        // Dibujar Paxbán
-        var limites = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8148, -90.0001], [17.8122, -90.3316]];
-        L.polygon(limites, {color: 'yellow', fillOpacity: 0.1}).addTo(map);
+    function cargarPuntos() {
+        capaPuntos.clearLayers();
+        document.getElementById('banner').style.display = 'none';
+        
+        const diasFiltro = parseInt(document.getElementById('filtroTiempo').value);
+        const hoy = new Date();
 
-        function cargarPuntos() {
-            capaPuntos.clearLayers();
-            document.getElementById('msgAlerta').style.display = 'none';
+        fetch('incendios.json?v=' + Date.now())
+            .then(res => res.json())
+            .then(data => {
+                data.forEach(p => {
+                    // 1. Filtro de Satélite
+                    if (p.sat === "SUOMI_VIIRS_C2" && !document.getElementById('sat_suomi').checked) return;
+                    if (p.sat === "J1_VIIRS_C2" && !document.getElementById('sat_j1').checked) return;
+                    if (p.sat === "J2_VIIRS_C2" && !document.getElementById('sat_j2').checked) return;
 
-            fetch('incendios.json?v=' + Date.now())
-                .then(res => res.json())
-                .then(data => {
-                    data.forEach(p => {
-                        if(!document.getElementById('checkRegionales').checked && !p.alerta) return;
+                    // 2. Filtro de Tiempo
+                    const fechaPunto = new Date(p.fecha);
+                    const diffDias = (hoy - fechaPunto) / (1000 * 60 * 60 * 24);
+                    if (diffDias > diasFiltro) return;
 
-                        L.circleMarker([p.lat, p.lon], {
-                            radius: p.alerta ? 12 : 7,
-                            fillColor: "red",
-                            color: "white",
-                            weight: 1,
-                            fillOpacity: 0.9
-                        }).addTo(capaPuntos).bindPopup(p.alerta ? "<b>¡INCENDIO EN PAXBÁN!</b>" : "Calor Regional");
+                    // 3. Filtro de Regionales
+                    if (!document.getElementById('verRegionales').checked && !p.alerta) return;
 
-                        if(p.alerta) document.getElementById('msgAlerta').style.display = 'block';
-                    });
+                    // Dibujar
+                    L.circleMarker([p.lat, p.lon], {
+                        radius: p.alerta ? 12 : 7,
+                        fillColor: "red", color: "white", weight: 1, fillOpacity: 0.8
+                    }).addTo(capaPuntos).bindPopup(`<b>${p.alerta ? 'ALERTA PAXBÁN' : 'Punto Regional'}</b><br>Satélite: ${p.sat}<br>Fecha: ${p.fecha}`);
+
+                    if (p.alerta) document.getElementById('banner').style.display = 'block';
                 });
-        }
+            });
+    }
 
-        cargarPuntos();
-        setInterval(cargarPuntos, 600000); // Recargar cada 10 min
-    </script>
+    cargarPuntos();
+</script>
 </body>
 </html>
