@@ -2,61 +2,78 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Monitor Satelital - Paxbán</title>
+    <title>Monitor PRO Paxbán</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: #222; color: white; }
-        #map { height: 750px; width: 100%; border: 2px solid #555; border-radius: 10px; }
-        .alerta-header { 
-            background: #d40000; color: white; padding: 15px; 
-            display: none; text-align: center; font-weight: bold; 
-            margin-bottom: 10px; border-radius: 5px; border: 2px solid yellow;
-            animation: flash 1s infinite;
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        .controles { 
+            position: absolute; top: 10px; right: 10px; z-index: 1000; 
+            background: rgba(0,0,0,0.8); color: white; padding: 15px; border-radius: 8px;
         }
-        @keyframes flash { 0% {opacity: 1;} 50% {opacity: 0.6;} 100% {opacity: 1;} }
+        .alerta-roja {
+            position: absolute; top: 0; width: 100%; background: red; color: white;
+            text-align: center; padding: 10px; font-weight: bold; z-index: 2000; display: none;
+        }
     </style>
 </head>
 <body>
-<div style="background: white; color: black; padding: 10px; position: absolute; top: 100px; left: 20px; z-index: 1000; border-radius: 5px; border: 2px solid #333;">
-    <strong>Filtros:</strong><br>
-    <input type="checkbox" id="verRegionales" checked onchange="actualizarVista()"> Ver puntos regionales<br>
-    <input type="checkbox" id="verSatelite" onchange="cambiarBase()"> Mapa Satélite
-</div>
-
-<script>
-    var capaBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    var sateliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+    <div id="msgAlerta" class="alerta-roja">🔥 ¡ALERTA CRÍTICA: FUEGO EN PAXBÁN! 🔥</div>
     
-    var marcadores = L.layerGroup().addTo(map);
+    <div class="controles">
+        <strong>VISTA DE MONITOREO</strong><br><br>
+        <label><input type="checkbox" id="checkSatelite" onchange="switchMap()"> Ver Satélite</label><br>
+        <label><input type="checkbox" checked id="checkRegionales" onchange="cargarPuntos()"> Ver puntos regionales</label>
+    </div>
 
-    function actualizarVista() {
-        marcadores.clearLayers();
-        fetch('incendios.json?v=' + Date.now())
-            .then(res => res.json())
-            .then(data => {
-                data.forEach(p => {
-                    if (!document.getElementById('verRegionales').checked && !p.alerta) return;
-                    
-                    L.circleMarker([p.lat, p.lon], {
-                        radius: p.alerta ? 12 : 7,
-                        fillColor: "red",
-                        color: p.alerta ? "yellow" : "white",
-                        weight: 2,
-                        fillOpacity: 0.9
-                    }).addTo(marcadores).bindPopup(p.alerta ? "<b>EMERGENCIA PAXBÁN</b>" : "Calor Regional");
-                });
-            });
-    }
+    <div id="map"></div>
 
-    function cambiarBase() {
-        if(document.getElementById('verSatelite').checked) {
-            map.removeLayer(capaBase);
-            sateliteLayer.addTo(map);
-        } else {
-            map.removeLayer(sateliteLayer);
-            capaBase.addTo(map);
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([17.71, -90.15], 9);
+        
+        var calles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        var satelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+        
+        var capaPuntos = L.layerGroup().addTo(map);
+
+        function switchMap() {
+            if(document.getElementById('checkSatelite').checked) {
+                map.removeLayer(calles); satelite.addTo(map);
+            } else {
+                map.removeLayer(satelite); calles.addTo(map);
+            }
         }
-    }
-</script>
+
+        // Dibujar Paxbán
+        var limites = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8148, -90.0001], [17.8122, -90.3316]];
+        L.polygon(limites, {color: 'yellow', fillOpacity: 0.1}).addTo(map);
+
+        function cargarPuntos() {
+            capaPuntos.clearLayers();
+            document.getElementById('msgAlerta').style.display = 'none';
+
+            fetch('incendios.json?v=' + Date.now())
+                .then(res => res.json())
+                .then(data => {
+                    data.forEach(p => {
+                        if(!document.getElementById('checkRegionales').checked && !p.alerta) return;
+
+                        L.circleMarker([p.lat, p.lon], {
+                            radius: p.alerta ? 12 : 7,
+                            fillColor: "red",
+                            color: "white",
+                            weight: 1,
+                            fillOpacity: 0.9
+                        }).addTo(capaPuntos).bindPopup(p.alerta ? "<b>¡INCENDIO EN PAXBÁN!</b>" : "Calor Regional");
+
+                        if(p.alerta) document.getElementById('msgAlerta').style.display = 'block';
+                    });
+                });
+        }
+
+        cargarPuntos();
+        setInterval(cargarPuntos, 600000); // Recargar cada 10 min
+    </script>
 </body>
 </html>
