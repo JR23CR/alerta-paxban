@@ -2,10 +2,10 @@ import requests
 import json
 from shapely.geometry import shape, Point
 
-# Configuración
+# Tu clave de NASA FIRMS
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
-# Coordenadas de Paxbán para el filtro
+# Polígono de la Concesión Paxbán
 paxban_coords = [
     [-90.33168791599998, 17.81225585600004], [-90.33346564299997, 17.81220859700005],
     [-90.37767796599996, 17.81153471800008], [-90.384658792, 17.81174332600006],
@@ -18,37 +18,40 @@ paxban_coords = [
 paxban_poly = shape({"type": "Polygon", "coordinates": [paxban_coords]})
 
 def obtener_incendios():
-    # Consultamos un área más grande de Petén (-91 a -89 longitud)
-    url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/VIIRS_SNPP_NRT/-91,17,-89,18.5/1"
+    # Área ampliada: cubre todo Petén y zonas de México/Belice
+    url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/VIIRS_SNPP_NRT/-92,16,-88,18.5/1"
     
     try:
+        print(f"Conectando a la NASA...")
         res = requests.get(url, timeout=30)
         res.raise_for_status()
         
-        todos_los_puntos = []
+        datos_finales = []
         lineas = res.text.strip().split('\n')
         
         if len(lineas) > 1:
             for linea in lineas[1:]:
-                datos = linea.split(',')
+                col = linea.split(',')
                 try:
-                    lat, lon = float(datos[0]), float(datos[1])
+                    lat, lon = float(col[0]), float(col[1])
                     punto = Point(lon, lat)
                     
-                    # LA CLAVE: Marcamos si está en Paxbán o no
-                    es_paxban = paxban_poly.contains(punto)
+                    # Detectar si está dentro de Paxbán
+                    esta_dentro = paxban_poly.contains(punto)
                     
-                    todos_los_puntos.append({
-                        "lat": lat, "lon": lon,
-                        "alerta": es_paxban
+                    datos_finales.append({
+                        "lat": lat,
+                        "lon": lon,
+                        "alerta": esta_dentro
                     })
                 except: continue
 
+        # Guardar el JSON (esto es lo que lee el index.html)
         with open('incendios.json', 'w', encoding='utf-8') as f:
-            json.dump(todos_los_puntos, f, indent=2)
+            json.dump(datos_finales, f, indent=2)
         
-        print(f"✅ Datos actualizados. Total puntos: {len(todos_los_puntos)}")
-        return len(todos_los_puntos)
+        print(f"✅ Éxito: {len(datos_finales)} puntos guardados.")
+        return len(datos_finales)
         
     except Exception as e:
         print(f"❌ Error: {e}")
