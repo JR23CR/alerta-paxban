@@ -2,54 +2,53 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Monitor Profesional Paxbán</title>
+    <title>Sistema de Monitoreo Paxbán - Regional</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; font-family: 'Arial', sans-serif; }
         #map { height: 100vh; width: 100%; }
-        .panel-filtros {
-            position: absolute; top: 20px; left: 60px; z-index: 1000;
-            background: rgba(0,0,0,0.85); color: white; padding: 20px;
-            border-radius: 10px; border: 1px solid #444; width: 220px;
+        .panel-control {
+            position: absolute; top: 20px; left: 50px; z-index: 1000;
+            background: rgba(0,0,0,0.8); color: white; padding: 15px;
+            border-radius: 8px; width: 240px; border: 1px solid #555;
         }
-        .panel-filtros h3 { margin-top: 0; color: #ffcc00; font-size: 16px; }
-        .filtro-seccion { margin-bottom: 15px; border-top: 1px solid #333; padding-top: 10px; }
-        label { display: block; margin: 5px 0; font-size: 13px; cursor: pointer; }
-        .alerta-activa {
-            position: absolute; top: 0; width: 100%; background: #ff0000;
+        h3 { margin: 0 0 10px 0; font-size: 16px; color: #ffcc00; text-align: center; }
+        .seccion { border-top: 1px solid #444; padding: 10px 0; margin-top: 5px; }
+        label { display: block; font-size: 13px; margin: 5px 0; cursor: pointer; }
+        .alerta-paxban {
+            position: absolute; top: 0; width: 100%; background: #e60000;
             color: white; text-align: center; padding: 10px; font-weight: bold;
-            z-index: 2000; display: none; animation: flash 1s infinite;
+            z-index: 2000; display: none;
         }
-        @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
     </style>
 </head>
 <body>
 
-<div id="banner" class="alerta-activa">🚨 ATENCIÓN: INCENDIO DETECTADO EN ÁREA DE PAXBÁN 🚨</div>
+<div id="alertaBanner" class="alerta-paxban">⚠️ ¡INCENDIO DETECTADO DENTRO DE PAXBÁN! ⚠️</div>
 
-<div class="panel-filtros">
-    <h3>FILTROS DE MONITOREO</h3>
+<div class="panel-control">
+    <h3>MONITOR REGIONAL</h3>
     
-    <div class="filtro-seccion">
-        <strong>Tiempo:</strong>
-        <select id="filtroTiempo" onchange="cargarPuntos()" style="width: 100%; margin-top:5px;">
+    <div class="seccion">
+        <strong>Rango de Tiempo:</strong>
+        <select id="filtroHoras" onchange="cargarDatos()" style="width:100%; margin-top:5px;">
             <option value="1">Últimas 24 Horas</option>
             <option value="2" selected>Últimas 48 Horas</option>
             <option value="3">Últimos 3 Días</option>
         </select>
     </div>
 
-    <div class="filtro-seccion">
+    <div class="seccion">
         <strong>Satélites:</strong>
-        <label><input type="checkbox" id="sat_suomi" checked onchange="cargarPuntos()"> VIIRS (Suomi NPP)</label>
-        <label><input type="checkbox" id="sat_j1" checked onchange="cargarPuntos()"> VIIRS (NOAA-20)</label>
-        <label><input type="checkbox" id="sat_j2" checked onchange="cargarPuntos()"> VIIRS (NOAA-21)</label>
+        <label><input type="checkbox" id="sat_modis" checked onchange="cargarDatos()"> MODIS (Terra/Aqua)</label>
+        <label><input type="checkbox" id="sat_snpp" checked onchange="cargarDatos()"> VIIRS (Suomi NPP)</label>
+        <label><input type="checkbox" id="sat_noaa" checked onchange="cargarDatos()"> VIIRS (NOAA-20)</label>
     </div>
 
-    <div class="filtro-seccion">
-        <strong>Capas:</strong>
-        <label><input type="checkbox" id="verRegionales" checked onchange="cargarPuntos()"> Ver puntos fuera de Paxbán</label>
-        <label><input type="checkbox" id="verSatelite" onchange="cambiarBase()"> Vista Satelital</label>
+    <div class="seccion">
+        <strong>Opciones:</strong>
+        <label><input type="checkbox" id="verRegionales" checked onchange="cargarDatos()"> Ver puntos externos</label>
+        <label><input type="checkbox" id="vistaSatelite" onchange="toggleMapa()"> Mapa Satelital</label>
     </div>
 </div>
 
@@ -57,60 +56,61 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    var map = L.map('map').setView([17.71, -90.15], 9);
-    var baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-    var baseSatelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+    var map = L.map('map').setView([16.5, -90.5], 7);
     
-    var capaPuntos = L.layerGroup().addTo(map);
+    var capaBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    var capaSatelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+    
+    var marcadores = L.layerGroup().addTo(map);
 
-    // Dibujar Paxbán
-    var limites = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8122, -90.3316]];
-    L.polygon(limites, {color: 'yellow', fillOpacity: 0.1, weight: 2}).addTo(map);
+    // Dibujar área de Paxbán
+    var areaPaxban = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8122, -90.3316]];
+    L.polygon(areaPaxban, {color: 'yellow', weight: 2, fillOpacity: 0.1}).addTo(map);
 
-    function cambiarBase() {
-        if(document.getElementById('verSatelite').checked) {
-            map.removeLayer(baseOSM); baseSatelite.addTo(map);
+    function toggleMapa() {
+        if(document.getElementById('vistaSatelite').checked) {
+            map.removeLayer(capaBase); capaSatelite.addTo(map);
         } else {
-            map.removeLayer(baseSatelite); baseOSM.addTo(map);
+            map.removeLayer(capaSatelite); capaBase.addTo(map);
         }
     }
 
-    function cargarPuntos() {
-        capaPuntos.clearLayers();
-        document.getElementById('banner').style.display = 'none';
+    function cargarDatos() {
+        marcadores.clearLayers();
+        document.getElementById('alertaBanner').style.display = 'none';
         
-        const diasFiltro = parseInt(document.getElementById('filtroTiempo').value);
+        const limiteDias = parseInt(document.getElementById('filtroHoras').value);
         const hoy = new Date();
 
         fetch('incendios.json?v=' + Date.now())
             .then(res => res.json())
             .then(data => {
                 data.forEach(p => {
-                    // 1. Filtro de Satélite
-                    if (p.sat === "SUOMI_VIIRS_C2" && !document.getElementById('sat_suomi').checked) return;
-                    if (p.sat === "J1_VIIRS_C2" && !document.getElementById('sat_j1').checked) return;
-                    if (p.sat === "J2_VIIRS_C2" && !document.getElementById('sat_j2').checked) return;
+                    // Filtro de Satélite
+                    if (p.sat.includes("MODIS") && !document.getElementById('sat_modis').checked) return;
+                    if (p.sat.includes("SNPP") && !document.getElementById('sat_snpp').checked) return;
+                    if (p.sat.includes("NOAA20") && !document.getElementById('sat_noaa').checked) return;
 
-                    // 2. Filtro de Tiempo
-                    const fechaPunto = new Date(p.fecha);
-                    const diffDias = (hoy - fechaPunto) / (1000 * 60 * 60 * 24);
-                    if (diffDias > diasFiltro) return;
+                    // Filtro de Tiempo
+                    const fechaP = new Date(p.fecha);
+                    const diasDiff = (hoy - fechaP) / (1000 * 60 * 60 * 24);
+                    if (diasDiff > limiteDias) return;
 
-                    // 3. Filtro de Regionales
+                    // Filtro de Externos
                     if (!document.getElementById('verRegionales').checked && !p.alerta) return;
 
-                    // Dibujar
+                    // Crear punto rojo
                     L.circleMarker([p.lat, p.lon], {
                         radius: p.alerta ? 12 : 7,
                         fillColor: "red", color: "white", weight: 1, fillOpacity: 0.8
-                    }).addTo(capaPuntos).bindPopup(`<b>${p.alerta ? 'ALERTA PAXBÁN' : 'Punto Regional'}</b><br>Satélite: ${p.sat}<br>Fecha: ${p.fecha}`);
+                    }).addTo(marcadores).bindPopup(`<b>${p.alerta ? 'INCENDIO EN PAXBÁN' : 'Punto Regional'}</b><br>Satélite: ${p.sat}<br>Fecha: ${p.fecha}`);
 
-                    if (p.alerta) document.getElementById('banner').style.display = 'block';
+                    if(p.alerta) document.getElementById('alertaBanner').style.display = 'block';
                 });
             });
     }
 
-    cargarPuntos();
+    cargarDatos();
 </script>
 </body>
 </html>
