@@ -7,12 +7,19 @@ import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from pyproj import Transformer
+
+try:
+    from pyproj import Transformer
+except ImportError:
+    Transformer = None
+    print("Advertencia: pyproj no está instalado. Las coordenadas GTM no se calcularán.", file=sys.stderr)
 
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
 def convertir_a_gtm(lon, lat):
     """Convierte coordenadas de WGS84 (lat, lon) a GTM."""
+    if not Transformer:
+        return "No disponible"
     try:
         # Define la transformación de WGS84 (EPSG:4326) a GTM
         # El código EPSG para GTM no es estándar, usamos su definición Proj4

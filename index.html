@@ -70,6 +70,7 @@
         </div>
         <div style="margin-top:10px; font-size:11px; color:#666;">
             Datos actualizados cada hora.
+            <div id="conteo" style="margin-top: 8px; font-size: 13px; color: #333; border-top: 1px solid #ccc; padding-top: 5px;">Cargando datos...</div>
         </div>
     </div>
 
@@ -128,9 +129,21 @@
             .then(response => response.json())
             .then(data => {
                 datosIncendios = data;
+                
+                // Auto-centrar el mapa si hay datos
+                if (datosIncendios.length > 0) {
+                    var bounds = L.latLngBounds(datosIncendios.map(p => [p.lat, p.lon]));
+                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+                } else {
+                    document.getElementById('conteo').innerText = "No hay incendios registrados en los últimos 7 días.";
+                }
+
                 actualizarMapa(); // Aplicar filtro inicial (24h)
             })
-            .catch(err => console.error("Error cargando incendios:", err));
+            .catch(err => {
+                console.error("Error cargando incendios:", err);
+                document.getElementById('conteo').innerHTML = "<span style='color:red'>Error cargando datos.</span>";
+            });
 
         function actualizarMapa() {
             incendiosLayer.clearLayers();
@@ -141,11 +154,14 @@
             var mostrarViirsSnpp = document.getElementById('satViirsSnpp').checked;
             var mostrarViirsNoaa = document.getElementById('satViirsNoaa').checked;
             
+            var visibles = 0;
+
             datosIncendios.forEach(punto => {
                 // Filtrar por tiempo y por satélite seleccionado
                 var satValido = (punto.sat === "MODIS_NRT" && mostrarModis) || (punto.sat === "VIIRS_SNPP_NRT" && mostrarViirsSnpp) || (punto.sat === "VIIRS_NOAA20_NRT" && mostrarViirsNoaa);
 
                 if (punto.horas <= horasFiltro && satValido) {
+                    visibles++;
                     
                     var color = punto.color;
                     
@@ -172,6 +188,13 @@
                     incendiosLayer.addLayer(circle);
                 }
             });
+
+            // Actualizar contador en pantalla
+            var msg = `Viendo <b>${visibles}</b> de <b>${datosIncendios.length}</b> focos.`;
+            if (visibles === 0 && datosIncendios.length > 0) {
+                msg += "<br><span style='color:#d32f2f; font-weight:bold;'>⚠️ Amplía el rango de tiempo para verlos.</span>";
+            }
+            document.getElementById('conteo').innerHTML = msg;
         }
     </script>
 </body>
