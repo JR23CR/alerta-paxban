@@ -38,6 +38,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Ejecutar Detector de Incendios
+        env:
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python actualizar_paxban.py
 
       - name: Setup Pages
