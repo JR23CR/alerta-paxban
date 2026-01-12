@@ -95,19 +95,20 @@ def generar_mapa_imagen(puntos):
     try:
         # Convertir puntos a Web Mercator (EPSG:3857) para el mapa base
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
-        xs, ys = [], []
+        xs, ys, colores = [], [], []
         
         for p in puntos:
             x, y = transformer.transform(p['lon'], p['lat'])
             xs.append(x)
             ys.append(y)
+            colores.append(p['color'])
         
         # Crear figura
         fig, ax = plt.subplots(figsize=(10, 10))
         
         # Si hay puntos, graficarlos
         if xs:
-            ax.scatter(xs, ys, c='red', s=50, alpha=0.8, edgecolors='white', linewidth=1, zorder=2, label='Puntos de Calor')
+            ax.scatter(xs, ys, c=colores, s=50, alpha=0.8, edgecolors='white', linewidth=1, zorder=2)
         
         # Definir límites del mapa (Petén aproximado) si no hay suficientes puntos para auto-escala
         # O para asegurar que siempre se vea Petén
@@ -273,56 +274,55 @@ def obtener_incendios():
     elif force_report:
         print("ℹ️ No hay alertas, pero se enviará reporte de estado por solicitud manual.")
         
-        # Obtener hasta 5 incendios fuera de concesiones como referencia
-        externos = [p for p in base_datos if not p['alerta']][:5]
-        
         # Generar la imagen del mapa con TODOS los puntos detectados
         imagen_bytes = generar_mapa_imagen(base_datos)
-        
-        html_externos = ""
-        if externos:
-            html_externos = """
-            <h3>🔥 Últimos focos detectados fuera de concesiones (Referencia)</h3>
-            <p>Estos puntos se detectaron en la región pero <strong>fuera</strong> de las áreas monitoreadas:</p>
-            <table>
-                <tr>
-                    <th>Coordenadas Lat/Lon</th>
-                    <th>Fecha</th>
-                    <th>Satélite</th>
-                </tr>
-            """
-            for ext in externos:
-                html_externos += f"""
-                <tr>
-                    <td>{ext['lat']:.4f}, {ext['lon']:.4f}</td>
-                    <td>{ext['fecha']}</td>
-                    <td>{ext['sat']}</td>
-                </tr>
-                """
-            html_externos += "</table>"
+        fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M")
 
         cuerpo_html = f"""
         <html>
         <head>
             <style>
-                body {{ font-family: Arial, sans-serif; }}
-                table {{ border-collapse: collapse; width: 100%; margin-top: 10px; }}
-                th, td {{ border: 1px solid #dddddd; text-align: left; padding: 8px; }}
-                th {{ background-color: #f2f2f2; }}
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; line-height: 1.6; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff; }}
+                .header {{ background-color: #2e7d32; color: white; padding: 15px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .content {{ padding: 20px; }}
+                .status-box {{ background-color: #f1f8e9; border-left: 5px solid #2e7d32; padding: 15px; margin: 20px 0; }}
+                .footer {{ font-size: 0.8em; text-align: center; color: #777; margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; }}
+                h2 {{ margin: 0; font-size: 1.4em; }}
+                h3 {{ color: #2e7d32; margin-top: 0; }}
             </style>
         </head>
         <body>
-            <h2>✅ Reporte de Estado: Sin Incendios en Concesiones</h2>
-            <p>El monitoreo manual no ha detectado focos de incendio <strong>dentro</strong> de las concesiones forestales en este momento.</p>
-            <p>Se analizaron un total de <strong>{len(base_datos)}</strong> puntos de calor en toda la región descargada.</p>
-            <p><strong>Mapa de situación actual en Petén:</strong></p>
-            <img src="cid:mapa_peten" alt="Mapa de Puntos de Calor" style="max-width: 100%; height: auto; border: 1px solid #ccc;">
-            {html_externos}
-            <p style="margin-top: 20px; font-size: 0.9em; color: #555;">Este es un correo generado por solicitud manual (Run Workflow).</p>
+            <div class="container">
+                <div class="header">
+                    <h2>Reporte de Monitoreo Satelital</h2>
+                </div>
+                <div class="content">
+                    <p>Estimado usuario,</p>
+                    <p>El sistema <strong>Alerta Paxbán</strong> ha completado el análisis de los datos satelitales más recientes.</p>
+                    
+                    <div class="status-box">
+                        <h3>✅ Estado: Sin Amenazas Detectadas</h3>
+                        <p>No se han identificado focos de incendio activos dentro de los polígonos de las concesiones forestales monitoreadas.</p>
+                        <p><strong>Puntos analizados en la región:</strong> {len(base_datos)}<br>
+                        <strong>Hora del reporte:</strong> {fecha_actual}</p>
+                    </div>
+
+                    <p>A continuación, se presenta el <strong>Mapa de Situación Actual en Petén</strong>, mostrando la actividad térmica general en la región. Los colores indican la antigüedad del punto de calor (Rojo: &lt;24h, Naranja: &lt;48h, Amarillo: &lt;72h).</p>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <img src="cid:mapa_peten" alt="Mapa de Situación Petén" style="max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                </div>
+                <div class="footer">
+                    <p>Sistema de Alerta Temprana Paxbán<br>
+                    Mensaje generado automáticamente por solicitud manual.</p>
+                </div>
+            </div>
         </body>
         </html>
         """
-        enviar_correo_alerta(cuerpo_html, asunto="✅ Reporte de Estado: Sin Incendios en Concesiones", imagen_mapa=imagen_bytes)
+        enviar_correo_alerta(cuerpo_html, asunto="✅ Reporte de Monitoreo: Sin Incendios en Concesiones", imagen_mapa=imagen_bytes)
 
 if __name__ == "__main__":
     obtener_incendios()
