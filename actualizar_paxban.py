@@ -1,15 +1,24 @@
-import requests
-import json
-from shapely.geometry import shape, Point
-from datetime import datetime
-import sys
 import os
+import sys
+import json
 import smtplib
+from datetime import datetime
+from io import BytesIO
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+
+import requests
+from shapely.geometry import shape, Point
+
+# Configurar matplotlib para que funcione sin pantalla (servidor) antes de importar pyplot
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt # noqa: E402
+import contextily as cx # noqa: E402
 
 try:
-    from pyproj import Transformer
+    from pyproj import Transformer # noqa: E402
 except ImportError:
     Transformer = None
     print("Advertencia: pyproj no está instalado. Las coordenadas GTM no se calcularán.", file=sys.stderr)
@@ -35,7 +44,7 @@ def convertir_a_gtm(lon, lat):
         print(f"Error convirtiendo coordenadas: {e}", file=sys.stderr)
         return "No disponible"
 
-def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio en Concesión Forestal"):
+def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio en Concesión Forestal", imagen_mapa=None):
     """Envía un correo electrónico de alerta usando credenciales de entorno."""
     SMTP_SERVER = os.environ.get("SMTP_SERVER")
     SMTP_PORT = os.environ.get("SMTP_PORT")
@@ -59,6 +68,13 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
         msg['Subject'] = asunto_completo
         
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
+        
+        # Adjuntar imagen del mapa si existe
+        if imagen_mapa:
+            img = MIMEImage(imagen_mapa)
+            img.add_header('Content-ID', '<mapa_peten>')
+            img.add_header('Content-Disposition', 'inline', filename='mapa_peten.png')
+            msg.attach(img)
 
         with smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT)) as server:
             server.starttls()
@@ -68,6 +84,53 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
     except Exception as e:
         print(f"Error crítico: No se pudo enviar el correo de alerta. Causa: {e}", file=sys.stderr)
 
+def generar_mapa_imagen(puntos):
+    """Genera una imagen PNG del mapa de Petén con los puntos de calor."""
+    print("Generando imagen del mapa...")
+    
+    if not Transformer:
+        print("Error: pyproj no está instalado, no se puede generar el mapa.", file=sys.stderr)
+        return None
+
+    try:
+        # Convertir puntos a Web Mercator (EPSG:3857) para el mapa base
+        transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+        xs, ys = [], []
+        
+        for p in puntos:
+            x, y = transformer.transform(p['lon'], p['lat'])
+            xs.append(x)
+            ys.append(y)
+        
+        # Crear figura
+        fig, ax = plt.subplots(figsize=(10, 10))
+        
+        # Si hay puntos, graficarlos
+        if xs:
+            ax.scatter(xs, ys, c='red', s=50, alpha=0.8, edgecolors='white', linewidth=1, zorder=2, label='Puntos de Calor')
+        
+        # Definir límites del mapa (Petén aproximado) si no hay suficientes puntos para auto-escala
+        # O para asegurar que siempre se vea Petén
+        minx, miny = transformer.transform(-91.5, 15.8) # Suroeste
+        maxx, maxy = transformer.transform(-89.0, 17.9) # Noreste
+        
+        # Ajustar vista para incluir puntos si están fuera, o mantener vista de Petén
+        ax.set_xlim(minx, maxx)
+        ax.set_ylim(miny, maxy)
+        
+        # Agregar mapa base de National Geographic
+        cx.add_basemap(ax, crs="EPSG:3857", source=cx.providers.Esri.NatGeoWorldMap, attribution=False)
+        ax.set_axis_off()
+        
+        # Guardar en memoria
+        buf = BytesIO()
+        plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
+        buf.seek(0)
+        plt.close(fig)
+        return buf.read()
+    except Exception as e:
+        print(f"Error generando el mapa: {e}", file=sys.stderr)
+        return None
 
 def cargar_concesiones(archivo_geojson):
     """Carga todas las áreas del GeoJSON en un diccionario de objetos Shapely."""
@@ -213,6 +276,9 @@ def obtener_incendios():
         # Obtener hasta 5 incendios fuera de concesiones como referencia
         externos = [p for p in base_datos if not p['alerta']][:5]
         
+        # Generar la imagen del mapa con TODOS los puntos detectados
+        imagen_bytes = generar_mapa_imagen(base_datos)
+        
         html_externos = ""
         if externos:
             html_externos = """
@@ -249,12 +315,14 @@ def obtener_incendios():
             <h2>✅ Reporte de Estado: Sin Incendios en Concesiones</h2>
             <p>El monitoreo manual no ha detectado focos de incendio <strong>dentro</strong> de las concesiones forestales en este momento.</p>
             <p>Se analizaron un total de <strong>{len(base_datos)}</strong> puntos de calor en toda la región descargada.</p>
+            <p><strong>Mapa de situación actual en Petén:</strong></p>
+            <img src="cid:mapa_peten" alt="Mapa de Puntos de Calor" style="max-width: 100%; height: auto; border: 1px solid #ccc;">
             {html_externos}
             <p style="margin-top: 20px; font-size: 0.9em; color: #555;">Este es un correo generado por solicitud manual (Run Workflow).</p>
         </body>
         </html>
         """
-        enviar_correo_alerta(cuerpo_html, asunto="✅ Reporte de Estado: Sin Incendios en Concesiones")
+        enviar_correo_alerta(cuerpo_html, asunto="✅ Reporte de Estado: Sin Incendios en Concesiones", imagen_mapa=imagen_bytes)
 
 if __name__ == "__main__":
     obtener_incendios()

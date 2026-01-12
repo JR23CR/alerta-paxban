@@ -68,7 +68,7 @@
         </div>
         <div style="margin-top:10px; font-size:11px; color:#666;">
             Datos actualizados cada hora.
-            <div id="conteo" style="margin-top: 8px; font-size: 13px; color: #333; border-top: 1px solid #ccc; padding-top: 5px;">Cargando datos...</div>
+            <div id="info-actualizacion" style="margin-top: 8px; font-size: 13px; color: #333; border-top: 1px solid #ccc; padding-top: 5px;">Verificando fecha...</div>
         </div>
     </div>
 
@@ -84,11 +84,15 @@
         // Capas Base
         var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
+        });
 
         var natGeo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA, iPC',
             maxZoom: 16
+        }).addTo(map);
+
+        var satelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
         });
 
         var incendiosLayer = L.layerGroup().addTo(map);
@@ -96,8 +100,9 @@
 
         // Control de Capas (Posicionado a la izquierda para no tapar el panel de filtros)
         L.control.layers({
-            "OpenStreetMap": osm,
-            "National Geographic": natGeo
+            "National Geographic": natGeo,
+            "Satélite": satelital,
+            "OpenStreetMap": osm
         }, {
             "Incendios": incendiosLayer,
             "Concesiones": concesionesLayer
@@ -124,7 +129,16 @@
 
         // Cargar Incendios
         fetch('incendios.json')
-            .then(response => response.json())
+            .then(response => {
+                var lastMod = response.headers.get('Last-Modified');
+                if (lastMod) {
+                    var date = new Date(lastMod);
+                    document.getElementById('info-actualizacion').innerText = "Última actualización: " + date.toLocaleString('es-GT');
+                } else {
+                    document.getElementById('info-actualizacion').innerText = "Última actualización: Reciente";
+                }
+                return response.json();
+            })
             .then(data => {
                 datosIncendios = data;
                 
@@ -132,15 +146,13 @@
                 if (datosIncendios.length > 0) {
                     var bounds = L.latLngBounds(datosIncendios.map(p => [p.lat, p.lon]));
                     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
-                } else {
-                    document.getElementById('conteo').innerText = "No hay incendios registrados en los últimos 3 días.";
                 }
 
                 actualizarMapa(); // Aplicar filtro inicial (24h)
             })
             .catch(err => {
                 console.error("Error cargando incendios:", err);
-                document.getElementById('conteo').innerHTML = "<span style='color:red'>Error cargando datos.</span>";
+                document.getElementById('info-actualizacion').innerHTML = "<span style='color:red'>Error cargando datos.</span>";
             });
 
         function actualizarMapa() {
@@ -186,13 +198,6 @@
                     incendiosLayer.addLayer(circle);
                 }
             });
-
-            // Actualizar contador en pantalla
-            var msg = `Viendo <b>${visibles}</b> de <b>${datosIncendios.length}</b> focos.`;
-            if (visibles === 0 && datosIncendios.length > 0) {
-                msg += "<br><span style='color:#d32f2f; font-weight:bold;'>⚠️ Amplía el rango de tiempo para verlos.</span>";
-            }
-            document.getElementById('conteo').innerHTML = msg;
         }
     </script>
 </body>
