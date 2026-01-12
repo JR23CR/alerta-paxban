@@ -2,6 +2,7 @@ import requests
 import json
 from shapely.geometry import shape, Point
 from datetime import datetime
+import sys
 
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
@@ -34,11 +35,14 @@ def obtener_incendios():
         try:
             print(f"Descargando datos de {sat}...")
             res = requests.get(url, timeout=30)
-            if res.status_code == 200:
-                lineas = res.text.strip().split('\n')
-                if len(lineas) > 1:
-                    for linea in lineas[1:]:
+            res.raise_for_status()  # Lanza un error para códigos 4xx/5xx
+            
+            lineas = res.text.strip().split('\n')
+            if len(lineas) > 1:
+                for linea in lineas[1:]:
+                    try:
                         col = linea.split(',')
+                        if len(col) < 6: continue # Ignorar lineas malformadas
                         lat, lon = float(col[0]), float(col[1])
                         punto_incendio = Point(lon, lat)
                         
@@ -60,9 +64,17 @@ def obtener_incendios():
                             "sat": sat,
                             "fecha": col[5]
                         })
-        except Exception as e:
-            print(f"Error en {sat}: {e}")
+                    except (ValueError, IndexError) as e:
+                        print(f"Advertencia: Saltando línea con datos inválidos: {linea} | Error: {e}", file=sys.stderr)
+                        continue
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error al contactar la API para {sat}: {e}", file=sys.stderr)
             continue
+
+    if not base_datos:
+        print("Error: No se pudo obtener ningún dato de incendios de las fuentes de la API después de todos los reintentos. El proceso terminará.", file=sys.stderr)
+        sys.exit(1)
 
     with open('incendios.json', 'w', encoding='utf-8') as f:
         json.dump(base_datos, f, indent=2, ensure_ascii=False)

@@ -31,11 +31,14 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Instalar GEOS
+        run: sudo apt-get update && sudo apt-get install -y libgeos-dev
+
       - name: Instalar dependencias
-        run: pip install requests shapely
+        run: pip install -r requirements.txt
 
       - name: Ejecutar Detector de Incendios
-        run: python actualizar_paxban.py 
+        run: python actualizar_paxban.py
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
