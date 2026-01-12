@@ -77,7 +77,7 @@ def obtener_incendios():
     print(f"Cargadas {len(dict_concesiones)} concesiones para monitoreo.")
 
     satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
-    intervalo = "3"
+    intervalo = "7" # Cambiado a 7 días como solicitaste
     base_datos = []
     area = "-94,13.5,-88,20"
 
@@ -93,7 +93,7 @@ def obtener_incendios():
                 for linea in lineas[1:]:
                     try:
                         col = linea.split(',')
-                        if len(col) < 6: continue
+                        if len(col) < 7: continue # Necesitamos hasta la columna 6 (acq_time)
                         lat, lon = float(col[0]), float(col[1])
                         punto_incendio = Point(lon, lat)
                         
@@ -106,10 +106,38 @@ def obtener_incendios():
                                 nombre_concesion_afectada = nombre
                                 break
                         
+                        # Procesar fecha y hora para calcular antigüedad
+                        fecha_str = col[5] # YYYY-MM-DD
+                        hora_str = col[6]  # HHMM
+                        # Formatear hora a HH:MM
+                        if len(hora_str) == 3: hora_str = "0" + hora_str
+                        if len(hora_str) != 4: hora_str = "0000"
+                        
+                        fecha_hora_obj = datetime.strptime(f"{fecha_str} {hora_str}", "%Y-%m-%d %H%M")
+                        horas_pasadas = (datetime.utcnow() - fecha_hora_obj).total_seconds() / 3600
+                        
+                        # Determinar color según antigüedad
+                        color = "blue" # Por defecto 7 días
+                        if horas_pasadas <= 24:
+                            color = "red"
+                        elif horas_pasadas <= 48:
+                            color = "orange"
+                        elif horas_pasadas <= 72: # 3 días
+                            color = "yellow"
+                        
+                        # Calcular GTM para el JSON
+                        coords_gtm = convertir_a_gtm(lon, lat)
+
                         base_datos.append({
-                            "lat": lat, "lon": lon, "alerta": esta_dentro,
+                            "lat": lat, 
+                            "lon": lon, 
+                            "alerta": esta_dentro,
                             "concesion": nombre_concesion_afectada if esta_dentro else "Fuera de concesión",
-                            "sat": sat, "fecha": col[5]
+                            "sat": sat, 
+                            "fecha": f"{fecha_str} {hora_str} UTC",
+                            "horas": horas_pasadas,
+                            "color": color,
+                            "gtm": coords_gtm
                         })
                     except (ValueError, IndexError) as e:
                         print(f"Advertencia: Saltando línea con datos inválidos: {linea} | Error: {e}", file=sys.stderr)

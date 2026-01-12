@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Incendios Paxbán</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        #map { height: 100vh; width: 100%; }
+        
+        .controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            min-width: 200px;
+        }
+        
+        .filter-group { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        select { padding: 5px; width: 100%; }
+        
+        .legend {
+            margin-top: 15px;
+            font-size: 12px;
+        }
+        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h3>Filtros</h3>
+        <div class="filter-group">
+            <label for="timeFilter">Rango de Tiempo:</label>
+            <select id="timeFilter" onchange="actualizarMapa()">
+                <option value="24" selected>Últimas 24 horas (Rojo)</option>
+                <option value="48">Últimas 48 horas (Naranja)</option>
+                <option value="72">Últimas 72 horas (Amarillo)</option>
+                <option value="168">Últimos 7 días (Azul)</option>
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Satélites:</label>
+            <div style="text-align: left;">
+                <input type="checkbox" id="satModis" value="MODIS_NRT" checked onchange="actualizarMapa()">
+                <label for="satModis" style="display:inline; font-weight:normal;">MODIS</label><br>
+                <input type="checkbox" id="satViirsSnpp" value="VIIRS_SNPP_NRT" checked onchange="actualizarMapa()">
+                <label for="satViirsSnpp" style="display:inline; font-weight:normal;">VIIRS SNPP</label><br>
+                <input type="checkbox" id="satViirsNoaa" value="VIIRS_NOAA20_NRT" checked onchange="actualizarMapa()">
+                <label for="satViirsNoaa" style="display:inline; font-weight:normal;">VIIRS NOAA20</label>
+            </div>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item"><span class="dot" style="background: red;"></span> ≤ 24 Horas</div>
+            <div class="legend-item"><span class="dot" style="background: orange;"></span> ≤ 48 Horas</div>
+            <div class="legend-item"><span class="dot" style="background: yellow;"></span> ≤ 72 Horas</div>
+            <div class="legend-item"><span class="dot" style="background: blue;"></span> ≤ 7 Días</div>
+        </div>
+        <div style="margin-top:10px; font-size:11px; color:#666;">
+            Datos actualizados cada hora.
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Inicializar mapa centrado en Petén, Guatemala
+        var map = L.map('map').setView([17.5, -90.0], 9);
+
+        // Capas Base
+        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var natGeo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA, iPC',
+            maxZoom: 16
+        });
+
+        var incendiosLayer = L.layerGroup().addTo(map);
+        var concesionesLayer = L.layerGroup().addTo(map);
+
+        // Control de Capas (Posicionado a la izquierda para no tapar el panel de filtros)
+        L.control.layers({
+            "OpenStreetMap": osm,
+            "National Geographic": natGeo
+        }, {
+            "Incendios": incendiosLayer,
+            "Concesiones": concesionesLayer
+        }, { position: 'topleft' }).addTo(map);
+
+        var datosIncendios = [];
+
+        // Cargar Concesiones (GeoJSON)
+        fetch('concesiones1.geojson')
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        return { color: "#2e7d32", weight: 2, fillOpacity: 0.1 };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        if (feature.properties && feature.properties.Name) {
+                            layer.bindPopup("<b>Concesión:</b> " + feature.properties.Name);
+                        }
+                    }
+                }).addTo(concesionesLayer);
+            })
+            .catch(err => console.error("Error cargando concesiones:", err));
+
+        // Cargar Incendios
+        fetch('incendios.json')
+            .then(response => response.json())
+            .then(data => {
+                datosIncendios = data;
+                actualizarMapa(); // Aplicar filtro inicial (24h)
+            })
+            .catch(err => console.error("Error cargando incendios:", err));
+
+        function actualizarMapa() {
+            incendiosLayer.clearLayers();
+            
+            var horasFiltro = parseInt(document.getElementById('timeFilter').value);
+            
+            var mostrarModis = document.getElementById('satModis').checked;
+            var mostrarViirsSnpp = document.getElementById('satViirsSnpp').checked;
+            var mostrarViirsNoaa = document.getElementById('satViirsNoaa').checked;
+            
+            datosIncendios.forEach(punto => {
+                // Filtrar por tiempo y por satélite seleccionado
+                var satValido = (punto.sat === "MODIS_NRT" && mostrarModis) || (punto.sat === "VIIRS_SNPP_NRT" && mostrarViirsSnpp) || (punto.sat === "VIIRS_NOAA20_NRT" && mostrarViirsNoaa);
+
+                if (punto.horas <= horasFiltro && satValido) {
+                    
+                    var color = punto.color;
+                    
+                    var circle = L.circleMarker([punto.lat, punto.lon], {
+                        radius: 6,
+                        fillColor: color,
+                        color: "#000",
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
+
+                    var popupContent = `
+                        <b>🔥 Punto de Calor Detectado</b><br>
+                        <b>GTM:</b> ${punto.gtm}<br>
+                        <b>Lat/Lon:</b> ${punto.lat.toFixed(4)}, ${punto.lon.toFixed(4)}<br>
+                        <b>Fecha:</b> ${punto.fecha}<br>
+                        <b>Antigüedad:</b> ${punto.horas.toFixed(1)} horas<br>
+                        <b>Ubicación:</b> ${punto.concesion}<br>
+                        <b>Satélite:</b> ${punto.sat}
+                    `;
+
+                    circle.bindPopup(popupContent);
+                    incendiosLayer.addLayer(circle);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
