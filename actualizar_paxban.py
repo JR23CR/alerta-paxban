@@ -147,8 +147,7 @@ def obtener_incendios():
             continue
 
     if not base_datos:
-        print("Error: No se pudo obtener ningún dato de incendios. El proceso terminará.", file=sys.stderr)
-        sys.exit(1)
+        print("Advertencia: No se encontraron datos de incendios en el área seleccionada. Se generará un reporte vacío.", file=sys.stderr)
 
     with open('incendios.json', 'w', encoding='utf-8') as f:
         json.dump(base_datos, f, indent=2, ensure_ascii=False)
