@@ -5,23 +5,34 @@ from datetime import datetime
 
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
-# Polígono de Paxbán
-paxban_coords = [[-90.3316, 17.8122], [-90.3776, 17.8115], [-90.3846, 17.8117], [-90.3781, 17.6018], [-90.3275, 17.6269], [-90.2594, 17.6398], [-90.1440, 17.7012], [-89.9998, 17.7254], [-89.9996, 17.8148], [-90.3316, 17.8122]]
-paxban_poly = shape({"type": "Polygon", "coordinates": [paxban_coords]})
+def cargar_concesiones(archivo_geojson):
+    """Carga todas las áreas del GeoJSON en un diccionario de objetos Shapely."""
+    concesiones = {}
+    with open(archivo_geojson, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        for feature in data['features']:
+            # Extraemos el nombre de la propiedad 'Name' que vimos en tu archivo
+            nombre = feature['properties'].get('Name', 'Área desconocida')
+            # Convertimos la geometría a un objeto shape de Shapely
+            concesiones[nombre] = shape(feature['geometry'])
+    return concesiones
 
 def obtener_incendios():
-    # Satélites: MODIS y los dos VIIRS principales
+    # 1. Cargamos todas las concesiones del archivo que subiste
+    dict_concesiones = cargar_concesiones('concesiones1.geojson')
+    print(f"Cargadas {len(dict_concesiones)} concesiones para monitoreo.")
+
     satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
-    intervalo = "3" # 3 días de datos para los filtros
+    intervalo = "3" 
     base_datos = []
     
-    # Área: México y Guatemala (-94 a -88 longitud)
+    # Área: Norte de Guatemala y Petén
     area = "-94,13.5,-88,20"
     
     for sat in satelites:
         url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/{area}/{intervalo}"
         try:
-            print(f"Descargando {sat}...")
+            print(f"Descargando datos de {sat}...")
             res = requests.get(url, timeout=30)
             if res.status_code == 200:
                 lineas = res.text.strip().split('\n')
@@ -29,22 +40,37 @@ def obtener_incendios():
                     for linea in lineas[1:]:
                         col = linea.split(',')
                         lat, lon = float(col[0]), float(col[1])
-                        # Columna 5 es la fecha (YYYY-MM-DD)
-                        fecha_raw = col[5]
+                        punto_incendio = Point(lon, lat)
                         
-                        esta_dentro = paxban_poly.contains(Point(lon, lat))
+                        # 2. Verificamos contra TODAS las concesiones
+                        nombre_concesion_afectada = None
+                        esta_dentro = False
+                        
+                        for nombre, poligono in dict_concesiones.items():
+                            if poligono.contains(punto_incendio):
+                                esta_dentro = True
+                                nombre_concesion_afectada = nombre
+                                break # Si ya lo encontró en una, saltamos a la siguiente alerta
+                        
                         base_datos.append({
                             "lat": lat, 
                             "lon": lon, 
                             "alerta": esta_dentro,
+                            "concesion": nombre_concesion_afectada if esta_dentro else "Fuera de concesión",
                             "sat": sat,
-                            "fecha": fecha_raw
+                            "fecha": col[5]
                         })
-        except: continue
+        except Exception as e:
+            print(f"Error en {sat}: {e}")
+            continue
 
     with open('incendios.json', 'w', encoding='utf-8') as f:
-        json.dump(base_datos, f, indent=2)
-    print(f"✅ Proceso finalizado. {len(base_datos)} puntos guardados.")
+        json.dump(base_datos, f, indent=2, ensure_ascii=False)
+    
+    print(f"✅ Proceso finalizado. {len(base_datos)} puntos analizados.")
+    # Mostrar resumen de alertas reales
+    alertas = [p for p in base_datos if p['alerta']]
+    print(f"🔥 Se detectaron {len(alertas)} focos de incendio dentro de concesiones.")
 
 if __name__ == "__main__":
     obtener_incendios()
