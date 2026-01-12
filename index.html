@@ -2,32 +2,32 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema de Monitoreo Paxbán - Regional</title>
+    <title>Monitor de Incendios - Concesiones Forestales</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; font-family: 'Arial', sans-serif; }
         #map { height: 100vh; width: 100%; }
         .panel-control {
             position: absolute; top: 20px; left: 50px; z-index: 1000;
-            background: rgba(0,0,0,0.8); color: white; padding: 15px;
-            border-radius: 8px; width: 240px; border: 1px solid #555;
+            background: rgba(0,0,0,0.85); color: white; padding: 15px;
+            border-radius: 8px; width: 260px; border: 1px solid #555;
         }
         h3 { margin: 0 0 10px 0; font-size: 16px; color: #ffcc00; text-align: center; }
         .seccion { border-top: 1px solid #444; padding: 10px 0; margin-top: 5px; }
         label { display: block; font-size: 13px; margin: 5px 0; cursor: pointer; }
-        .alerta-paxban {
+        .alerta-banner {
             position: absolute; top: 0; width: 100%; background: #e60000;
             color: white; text-align: center; padding: 10px; font-weight: bold;
-            z-index: 2000; display: none;
+            z-index: 2000; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
 
-<div id="alertaBanner" class="alerta-paxban">⚠️ ¡INCENDIO DETECTADO DENTRO DE PAXBÁN! ⚠️</div>
+<div id="alertaBanner" class="alerta-banner">⚠️ ¡INCENDIO DETECTADO EN: <span id="nombreZona"></span>! ⚠️</div>
 
 <div class="panel-control">
-    <h3>MONITOR REGIONAL</h3>
+    <h3>MONITOR DE CONCESIONES</h3>
     
     <div class="seccion">
         <strong>Rango de Tiempo:</strong>
@@ -40,13 +40,13 @@
 
     <div class="seccion">
         <strong>Satélites:</strong>
-        <label><input type="checkbox" id="sat_modis" checked onchange="cargarDatos()"> MODIS (Terra/Aqua)</label>
-        <label><input type="checkbox" id="sat_snpp" checked onchange="cargarDatos()"> VIIRS (Suomi NPP)</label>
+        <label><input type="checkbox" id="sat_modis" checked onchange="cargarDatos()"> MODIS</label>
+        <label><input type="checkbox" id="sat_snpp" checked onchange="cargarDatos()"> VIIRS (SNPP)</label>
         <label><input type="checkbox" id="sat_noaa" checked onchange="cargarDatos()"> VIIRS (NOAA-20)</label>
     </div>
 
     <div class="seccion">
-        <strong>Opciones:</strong>
+        <strong>Visualización:</strong>
         <label><input type="checkbox" id="verRegionales" checked onchange="cargarDatos()"> Ver puntos externos</label>
         <label><input type="checkbox" id="vistaSatelite" onchange="toggleMapa()"> Mapa Satelital</label>
     </div>
@@ -56,16 +56,25 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    var map = L.map('map').setView([16.5, -90.5], 7);
+    var map = L.map('map').setView([17.5, -90.0], 8);
     
     var capaBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     var capaSatelite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
     
     var marcadores = L.layerGroup().addTo(map);
+    var capaPoligonos = L.layerGroup().addTo(map);
 
-    // Dibujar área de Paxbán
-    var areaPaxban = [[17.8122, -90.3316], [17.8115, -90.3776], [17.8117, -90.3846], [17.6018, -90.3781], [17.6269, -90.3275], [17.7012, -90.1440], [17.7254, -89.9998], [17.8148, -89.9996], [17.8122, -90.3316]];
-    L.polygon(areaPaxban, {color: 'yellow', weight: 2, fillOpacity: 0.1}).addTo(map);
+    // 1. Cargar y dibujar los polígonos desde el GeoJSON para que se vean todas las concesiones
+    fetch('concesiones1.geojson')
+        .then(res => res.json())
+        .then(geojsonData => {
+            L.geoJSON(geojsonData, {
+                style: { color: 'yellow', weight: 1, fillOpacity: 0.05 },
+                onEachFeature: function(feature, layer) {
+                    layer.bindTooltip(feature.properties.Name); // Muestra nombre al pasar el mouse
+                }
+            }).addTo(capaPoligonos);
+        });
 
     function toggleMapa() {
         if(document.getElementById('vistaSatelite').checked) {
@@ -85,8 +94,10 @@
         fetch('incendios.json?v=' + Date.now())
             .then(res => res.json())
             .then(data => {
+                let zonasAfectadas = [];
+
                 data.forEach(p => {
-                    // Filtro de Satélite
+                    // Filtros de Satélite
                     if (p.sat.includes("MODIS") && !document.getElementById('sat_modis').checked) return;
                     if (p.sat.includes("SNPP") && !document.getElementById('sat_snpp').checked) return;
                     if (p.sat.includes("NOAA20") && !document.getElementById('sat_noaa').checked) return;
@@ -99,17 +110,34 @@
                     // Filtro de Externos
                     if (!document.getElementById('verRegionales').checked && !p.alerta) return;
 
-                    // Crear punto rojo
+                    // Color: Rojo fuerte para incendios en concesión, Naranja para externos
+                    const colorPunto = p.alerta ? "#ff0000" : "#ff8c00";
+                    
                     L.circleMarker([p.lat, p.lon], {
-                        radius: p.alerta ? 12 : 7,
-                        fillColor: "red", color: "white", weight: 1, fillOpacity: 0.8
-                    }).addTo(marcadores).bindPopup(`<b>${p.alerta ? 'INCENDIO EN PAXBÁN' : 'Punto Regional'}</b><br>Satélite: ${p.sat}<br>Fecha: ${p.fecha}`);
+                        radius: p.alerta ? 10 : 6,
+                        fillColor: colorPunto, color: "white", weight: 1, fillOpacity: 0.8
+                    }).addTo(marcadores).bindPopup(`
+                        <b>${p.alerta ? '🔥 INCENDIO: ' + p.concesion : 'Punto Regional'}</b><br>
+                        Satélite: ${p.sat}<br>
+                        Fecha: ${p.fecha}<br>
+                        Coord: ${p.lat}, ${p.lon}
+                    `);
 
-                    if(p.alerta) document.getElementById('alertaBanner').style.display = 'block';
+                    if(p.alerta) {
+                        if(!zonasAfectadas.includes(p.concesion)) zonasAfectadas.push(p.concesion);
+                    }
                 });
+
+                // Mostrar banner si hay alertas
+                if(zonasAfectadas.length > 0) {
+                    document.getElementById('alertaBanner').style.display = 'block';
+                    document.getElementById('nombreZona').innerText = zonasAfectadas.join(", ");
+                }
             });
     }
 
+    // Recargar datos cada 5 minutos automáticamente
+    setInterval(cargarDatos, 300000);
     cargarDatos();
 </script>
 </body>
