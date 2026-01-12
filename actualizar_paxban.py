@@ -173,6 +173,32 @@ def obtener_incendios():
     dict_concesiones = cargar_concesiones('concesiones1.geojson')
     print(f"Cargadas {len(dict_concesiones)} concesiones para monitoreo.")
 
+    # 1. Calcular Zona de Pre-Alerta (Buffer de 10km alrededor de Paxbán)
+    zona_pre_alerta = None
+    poly_paxban = None
+    paxban_gtm = None
+    to_gtm = None
+    for nombre, poly in dict_concesiones.items():
+        if "Paxbán" in nombre:
+            poly_paxban = poly
+            break
+    
+    if poly_paxban and Transformer:
+        try:
+            # Definiciones de proyección
+            proj_wgs84 = "EPSG:4326"
+            proj_gtm = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+            
+            to_gtm = Transformer.from_crs(proj_wgs84, proj_gtm, always_xy=True).transform
+            to_wgs84 = Transformer.from_crs(proj_gtm, proj_wgs84, always_xy=True).transform
+            
+            paxban_gtm = transform(to_gtm, poly_paxban)
+            buffer_gtm = paxban_gtm.buffer(10000) # 10,000 metros = 10 km
+            zona_pre_alerta = transform(to_wgs84, buffer_gtm)
+            print("✅ Zona de pre-alerta (10km) calculada correctamente.")
+        except Exception as e:
+            print(f"Advertencia: No se pudo calcular el buffer de pre-alerta: {e}", file=sys.stderr)
+
     satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
     intervalo = "3"
     base_datos = []
@@ -203,6 +229,22 @@ def obtener_incendios():
                                 nombre_concesion_afectada = nombre
                                 break
                         
+                        # Verificar Pre-Alerta (Cercanía a Paxbán)
+                        es_pre_alerta = False
+                        distancia_str = ""
+                        if zona_pre_alerta and zona_pre_alerta.contains(punto_incendio):
+                            # Si está en el buffer pero NO dentro de Paxbán (para no duplicar alertas)
+                            if not (nombre_concesion_afectada and "Paxbán" in nombre_concesion_afectada):
+                                es_pre_alerta = True
+                                # Calcular distancia exacta al límite en metros
+                                if paxban_gtm and to_gtm:
+                                    try:
+                                        punto_gtm = transform(to_gtm, punto_incendio)
+                                        dist_m = paxban_gtm.distance(punto_gtm)
+                                        distancia_str = f"{int(dist_m)} m"
+                                    except Exception:
+                                        pass
+                        
                         # Procesar fecha y hora para calcular antigüedad
                         fecha_str = col[5] # YYYY-MM-DD
                         hora_str = col[6]  # HHMM
@@ -229,6 +271,8 @@ def obtener_incendios():
                             "lat": lat, 
                             "lon": lon, 
                             "alerta": esta_dentro,
+                            "pre_alerta": es_pre_alerta,
+                            "distancia": distancia_str,
                             "concesion": nombre_concesion_afectada if esta_dentro else "Fuera de concesión",
                             "sat": sat, 
                             "fecha": f"{fecha_str} {hora_str} UTC",
@@ -252,51 +296,110 @@ def obtener_incendios():
     print(f"✅ Proceso finalizado. {len(base_datos)} puntos analizados.")
     
     alertas = [p for p in base_datos if p['alerta']]
+    pre_alertas = [p for p in base_datos if p.get('pre_alerta')]
     print(f"🔥 Se detectaron {len(alertas)} focos de incendio dentro de concesiones.")
+    print(f"⚠️ Se detectaron {len(pre_alertas)} focos en zona de pre-alerta (10km).")
 
     force_report = os.environ.get("FORCE_REPORT", "false").lower() == "true"
 
-    if alertas:
+    if alertas or pre_alertas:
+        # Generar imagen del mapa para la alerta (mostrando contexto)
+        imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
+
         cuerpo_html = """
         <html>
         <head>
             <style>
-                body { font-family: Arial, sans-serif; }
-                table { border-collapse: collapse; width: 100%; }
-                th, td { border: 1px solid #dddddd; text-align: left; padding: 8px; }
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; }
+                h2 { color: #d32f2f; }
+                table { border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 0.9em; }
+                th, td { border: 1px solid #dddddd; text-align: left; padding: 10px; }
                 th { background-color: #f2f2f2; }
+                .map-container { text-align: center; margin: 20px 0; }
+                img { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; }
             </style>
         </head>
         <body>
             <h2>🚨 Alerta de Incendios en Concesiones Forestales</h2>
-            <p>Se han detectado los siguientes focos de incendio dentro de las áreas de concesión monitoreadas:</p>
+            <p>Se han detectado <strong>{len(alertas)}</strong> focos de incendio activos dentro de las áreas monitoreadas.</p>
+            
+            <div class="map-container">
+                <img src="cid:mapa_peten" alt="Mapa de Alerta">
+            </div>
+
             <table>
                 <tr>
-                    <th>Concesión Afectada</th>
+                    <th>Concesión</th>
+                    <th>Distancia a Paxbán</th>
                     <th>Coordenadas GTM</th>
-                    <th>Coordenadas Lat/Lon</th>
+                    <th>Lat/Lon</th>
                     <th>Satélite</th>
-                    <th>Fecha y Hora (UTC)</th>
+                    <th>Antigüedad</th>
+                    <th>Fecha (UTC)</th>
+                </tr>
+        """.format(len=len) # Usar format para len(alertas) si es necesario, o f-string arriba
+        
+        # Reconstruyendo con f-string para simplicidad
+        cuerpo_html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; }}
+                h2 {{ color: #d32f2f; }}
+                table {{ border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 0.9em; }}
+                th, td {{ border: 1px solid #dddddd; text-align: left; padding: 10px; }}
+                th {{ background-color: #f2f2f2; }}
+                .map-container {{ text-align: center; margin: 20px 0; }}
+                img {{ max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; }}
+            </style>
+        </head>
+        <body>
+            <h2>🚨 Alerta de Incendios en Concesiones Forestales</h2>
+            <p>Se han detectado actividad de fuego relevante para el monitoreo.</p>
+            
+            <div class="map-container">
+                <p><strong>Ubicación de las alertas:</strong></p>
+                <img src="cid:mapa_peten" alt="Mapa de Alerta">
+            </div>
+
+            """
+        
+        if alertas:
+            cuerpo_html += f"""
+            <h3>🔥 Incendios CONFIRMADOS dentro de Concesiones ({len(alertas)})</h3>
+            <table>
+                <tr>
+                    <th>Concesión</th>
+                    <th>Coordenadas GTM</th>
+                    <th>Lat/Lon</th>
+                    <th>Satélite</th>
+                    <th>Antigüedad</th>
+                    <th>Fecha (UTC)</th>
                 </tr>
         """
+
         for alerta in alertas:
-            coords_gtm = convertir_a_gtm(alerta['lon'], alerta['lat'])
             cuerpo_html += f"""
                 <tr>
-                    <td>{alerta['concesion']}</td>
-                    <td>{coords_gtm}</td>
+                    <td><strong>{alerta['concesion']}</strong></td>
+                    <td>{alerta['gtm']}</td>
                     <td>{alerta['lat']:.4f}, {alerta['lon']:.4f}</td>
                     <td>{alerta['sat']}</td>
+                    <td>{alerta['horas']:.1f} horas</td>
                     <td>{alerta['fecha']}</td>
                 </tr>
             """
         cuerpo_html += """
             </table>
-            <p>Este es un correo automático. Por favor, no responder.</p>
+            <p style="font-size: 0.9em; color: #666; margin-top: 20px;">
+                Este es un mensaje de alerta automática del Sistema Paxbán.<br>
+                Verifique la situación en campo.
+                <br><em>Desarrollado por JR23CR</em>
+            </p>
         </body>
         </html>
         """
-        enviar_correo_alerta(cuerpo_html)
+        enviar_correo_alerta(cuerpo_html, imagen_mapa=imagen_bytes)
     elif force_report:
         print("ℹ️ No hay alertas, pero se enviará reporte de estado por solicitud manual.")
         
@@ -342,7 +445,8 @@ def obtener_incendios():
                 </div>
                 <div class="footer">
                     <p>Sistema de Alerta Temprana Paxbán<br>
-                    Mensaje generado automáticamente por solicitud manual.</p>
+                    Mensaje generado automáticamente por solicitud manual.<br>
+                    <em>Desarrollado por JR23CR</em></p>
                 </div>
             </div>
         </body>
