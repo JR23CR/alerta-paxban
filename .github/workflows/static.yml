@@ -43,7 +43,8 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          RECIPIENT_EMAIL: coradojose952@gmail.com
+          FORCE_REPORT: ${{ github.event_name == 'workflow_dispatch' }}
         run: python actualizar_paxban.py
 
       - name: Setup Pages

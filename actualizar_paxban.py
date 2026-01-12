@@ -28,7 +28,7 @@ def convertir_a_gtm(lon, lat):
         print(f"Error convirtiendo coordenadas: {e}", file=sys.stderr)
         return "No disponible"
 
-def enviar_correo_alerta(cuerpo_html):
+def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio en Concesión Forestal"):
     """Envía un correo electrónico de alerta usando credenciales de entorno."""
     SMTP_SERVER = os.environ.get("SMTP_SERVER")
     SMTP_PORT = os.environ.get("SMTP_PORT")
@@ -40,12 +40,16 @@ def enviar_correo_alerta(cuerpo_html):
         print("Advertencia: Faltan una o más variables de entorno para el envío de correo. No se enviará la alerta.", file=sys.stderr)
         return
 
+    # Agregar fecha y hora al asunto para diferenciar correos
+    fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    asunto_completo = f"{asunto} - {fecha_hora}"
+
     print("Enviando correo de alerta...")
     try:
         msg = MIMEMultipart()
         msg['From'] = SMTP_USER
         msg['To'] = RECIPIENT_EMAIL
-        msg['Subject'] = "🔥 Alerta Temprana de Incendio en Concesión Forestal"
+        msg['Subject'] = asunto_completo
         
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
 
@@ -126,6 +130,8 @@ def obtener_incendios():
     alertas = [p for p in base_datos if p['alerta']]
     print(f"🔥 Se detectaron {len(alertas)} focos de incendio dentro de concesiones.")
 
+    force_report = os.environ.get("FORCE_REPORT", "false").lower() == "true"
+
     if alertas:
         cuerpo_html = """
         <html>
@@ -167,6 +173,54 @@ def obtener_incendios():
         </html>
         """
         enviar_correo_alerta(cuerpo_html)
+    elif force_report:
+        print("ℹ️ No hay alertas, pero se enviará reporte de estado por solicitud manual.")
+        
+        # Obtener hasta 5 incendios fuera de concesiones como referencia
+        externos = [p for p in base_datos if not p['alerta']][:5]
+        
+        html_externos = ""
+        if externos:
+            html_externos = """
+            <h3>🔥 Últimos focos detectados fuera de concesiones (Referencia)</h3>
+            <p>Estos puntos se detectaron en la región pero <strong>fuera</strong> de las áreas monitoreadas:</p>
+            <table>
+                <tr>
+                    <th>Coordenadas Lat/Lon</th>
+                    <th>Fecha</th>
+                    <th>Satélite</th>
+                </tr>
+            """
+            for ext in externos:
+                html_externos += f"""
+                <tr>
+                    <td>{ext['lat']:.4f}, {ext['lon']:.4f}</td>
+                    <td>{ext['fecha']}</td>
+                    <td>{ext['sat']}</td>
+                </tr>
+                """
+            html_externos += "</table>"
+
+        cuerpo_html = f"""
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; }}
+                table {{ border-collapse: collapse; width: 100%; margin-top: 10px; }}
+                th, td {{ border: 1px solid #dddddd; text-align: left; padding: 8px; }}
+                th {{ background-color: #f2f2f2; }}
+            </style>
+        </head>
+        <body>
+            <h2>✅ Reporte de Estado: Sin Incendios en Concesiones</h2>
+            <p>El monitoreo manual no ha detectado focos de incendio <strong>dentro</strong> de las concesiones forestales en este momento.</p>
+            <p>Se analizaron un total de <strong>{len(base_datos)}</strong> puntos de calor en toda la región descargada.</p>
+            {html_externos}
+            <p style="margin-top: 20px; font-size: 0.9em; color: #555;">Este es un correo generado por solicitud manual (Run Workflow).</p>
+        </body>
+        </html>
+        """
+        enviar_correo_alerta(cuerpo_html, asunto="✅ Reporte de Estado: Sin Incendios en Concesiones")
 
 if __name__ == "__main__":
     obtener_incendios()
