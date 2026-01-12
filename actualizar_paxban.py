@@ -2,7 +2,7 @@ import os
 import sys
 import json
 import smtplib
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -10,6 +10,7 @@ from email.mime.image import MIMEImage
 
 import requests
 from shapely.geometry import shape, Point
+from shapely.ops import transform
 
 # Configurar matplotlib para que funcione sin pantalla (servidor) antes de importar pyplot
 import matplotlib
@@ -57,7 +58,8 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
         return
 
     # Agregar fecha y hora al asunto para diferenciar correos
-    fecha_hora = datetime.now().strftime("%d/%m/%Y %H:%M")
+    # Hora de Guatemala (UTC-6)
+    fecha_hora = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
     asunto_completo = f"{asunto} - {fecha_hora}"
 
     print("Enviando correo de alerta...")
@@ -84,7 +86,7 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
     except Exception as e:
         print(f"Error crítico: No se pudo enviar el correo de alerta. Causa: {e}", file=sys.stderr)
 
-def generar_mapa_imagen(puntos):
+def generar_mapa_imagen(puntos, concesiones=None):
     """Genera una imagen PNG del mapa de Petén con los puntos de calor."""
     print("Generando imagen del mapa...")
     
@@ -106,6 +108,30 @@ def generar_mapa_imagen(puntos):
         # Crear figura
         fig, ax = plt.subplots(figsize=(10, 10))
         
+        # Dibujar polígonos de concesiones si existen
+        if concesiones:
+            for nombre, poligono in concesiones.items():
+                # Filtrar para mostrar solo el polígono de Paxbán
+                if "Paxbán" not in nombre:
+                    continue
+
+                try:
+                    # Transformar polígono a Web Mercator (3857) para coincidir con el mapa base
+                    poligono_3857 = transform(transformer.transform, poligono)
+                    
+                    # Función auxiliar para dibujar
+                    def plot_poly(geom):
+                        x, y = geom.exterior.xy
+                        ax.plot(x, y, color='#2e7d32', linewidth=2, alpha=0.8, zorder=1) # Verde bosque
+
+                    if poligono_3857.geom_type == 'Polygon':
+                        plot_poly(poligono_3857)
+                    elif poligono_3857.geom_type == 'MultiPolygon':
+                        for poly in poligono_3857.geoms:
+                            plot_poly(poly)
+                except Exception as e:
+                    print(f"Error dibujando concesión {nombre}: {e}", file=sys.stderr)
+
         # Si hay puntos, graficarlos
         if xs:
             ax.scatter(xs, ys, c=colores, s=50, alpha=0.8, edgecolors='white', linewidth=1, zorder=2)
@@ -275,8 +301,8 @@ def obtener_incendios():
         print("ℹ️ No hay alertas, pero se enviará reporte de estado por solicitud manual.")
         
         # Generar la imagen del mapa con TODOS los puntos detectados
-        imagen_bytes = generar_mapa_imagen(base_datos)
-        fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M")
+        imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
+        fecha_actual = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
 
         cuerpo_html = f"""
         <html>
@@ -322,7 +348,7 @@ def obtener_incendios():
         </body>
         </html>
         """
-        enviar_correo_alerta(cuerpo_html, asunto="✅ Reporte de Monitoreo: Sin Incendios en Concesiones", imagen_mapa=imagen_bytes)
+        enviar_correo_alerta(cuerpo_html, asunto="Reporte de Monitoreo", imagen_mapa=imagen_bytes)
 
 if __name__ == "__main__":
     obtener_incendios()
