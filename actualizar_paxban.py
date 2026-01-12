@@ -84,7 +84,7 @@ def obtener_incendios():
     print(f"Cargadas {len(dict_concesiones)} concesiones para monitoreo.")
 
     satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
-    intervalo = "7" # Cambiado a 7 días como solicitaste
+    intervalo = "3"
     base_datos = []
     area = "-94,13.5,-88,20"
 
