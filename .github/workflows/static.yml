@@ -1,10 +1,9 @@
 name: Monitor y Deploy Paxban
-
 on:
   push:
     branches: ["main"]
   schedule:
-    - cron: '0 * * * *' # Se ejecuta cada hora
+    - cron: '0 * * * *'
   workflow_dispatch: {}
 
 permissions:
@@ -12,7 +11,7 @@ permissions:
   pages: write
   id-token: write
 
-# Ajuste clave: Asegura que solo una tarea de despliegue corra a la vez
+# Esto evita el error de "Multiple artifacts" y "In progress deployment"
 concurrency:
   group: "pages"
   cancel-in-progress: true 
@@ -41,14 +40,11 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      # Subimos los archivos (index, json, geojson)
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
-          if-no-files-found: error # Esto ayuda a detectar si el script falló
 
-      # Despliegue final
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
