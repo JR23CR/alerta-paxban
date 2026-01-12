@@ -4,6 +4,7 @@ on:
     branches: ["main"]
   schedule:
     - cron: '0 * * * *'
+    - cron: '0 13 * * *' # Reporte diario 7:00 AM Guatemala (13:00 UTC)
   workflow_dispatch: {}
 
 permissions:
@@ -37,14 +38,33 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
+      - name: Configurar Destinatarios y Modo
+        run: |
+          # Definir listas de correos
+          EMAILS_ALERTAS="tecnico@gibor.com, regencia@gibor.com, coradojose952@gmail.com"
+          EMAIL_MANUAL="coradojose952@gmail.com"
+          
+          # Lógica de selección según el evento que disparó el flujo
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "Modo: Manual (Solo a Corado)"
+            echo "RECIPIENT_EMAIL=$EMAIL_MANUAL" >> $GITHUB_ENV
+            echo "FORCE_REPORT=true" >> $GITHUB_ENV
+          elif [[ "${{ github.event.schedule }}" == "0 13 * * *" ]]; then
+            echo "Modo: Reporte Diario 7:00 AM (A todos)"
+            echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
+            echo "FORCE_REPORT=true" >> $GITHUB_ENV
+          else
+            echo "Modo: Monitoreo Automático (A todos, solo si hay fuego)"
+            echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
+            echo "FORCE_REPORT=false" >> $GITHUB_ENV
+          fi
+
       - name: Ejecutar Detector de Incendios
         env:
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          RECIPIENT_EMAIL: coradojose952@gmail.com
-          FORCE_REPORT: ${{ github.event_name == 'workflow_dispatch' }}
         run: python actualizar_paxban.py
 
       - name: Setup Pages

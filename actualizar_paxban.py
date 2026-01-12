@@ -57,16 +57,19 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
         print("Advertencia: Faltan una o más variables de entorno para el envío de correo. No se enviará la alerta.", file=sys.stderr)
         return
 
+    # Procesar lista de destinatarios (separados por comas)
+    destinatarios = [email.strip() for email in RECIPIENT_EMAIL.split(',') if email.strip()]
+
     # Agregar fecha y hora al asunto para diferenciar correos
     # Hora de Guatemala (UTC-6)
     fecha_hora = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
     asunto_completo = f"{asunto} - {fecha_hora}"
 
-    print("Enviando correo de alerta...")
+    print(f"Enviando correo de alerta a {len(destinatarios)} destinatarios...")
     try:
         msg = MIMEMultipart()
         msg['From'] = SMTP_USER
-        msg['To'] = RECIPIENT_EMAIL
+        msg['To'] = ", ".join(destinatarios)
         msg['Subject'] = asunto_completo
         
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
