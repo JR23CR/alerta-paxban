@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import smtplib
+import shutil
 from datetime import datetime, timedelta
 from io import BytesIO
 from email.mime.multipart import MIMEMultipart
@@ -159,6 +160,31 @@ def guardar_mapa_local(imagen_bytes):
         f.write(imagen_bytes)
     print(f"✅ Mapa guardado para CONAP en: {ruta_completa}")
 
+def guardar_bitacora(imagen_bytes, tipo, datos_puntos):
+    """Guarda evidencia de alertas/pre-alertas en la carpeta bitacora para el reporte mensual."""
+    if not imagen_bytes: return
+    
+    fecha_dt = datetime.utcnow() - timedelta(hours=6)
+    anio = fecha_dt.strftime("%Y")
+    mes = fecha_dt.strftime("%m")
+    fecha_str = fecha_dt.strftime("%Y-%m-%d_%H%M")
+    
+    # Tipo: 'alertas' (Incendios Paxban) o 'pre_alertas' (Puntos de Calor/Cerca)
+    carpeta = os.path.join("bitacora", anio, mes, tipo)
+    os.makedirs(carpeta, exist_ok=True)
+    
+    nombre_img = f"{tipo}_{fecha_str}.png"
+    ruta_img = os.path.join(carpeta, nombre_img)
+    
+    with open(ruta_img, "wb") as f:
+        f.write(imagen_bytes)
+        
+    # Guardar JSON con detalles para referencia
+    nombre_json = f"{tipo}_{fecha_str}.json"
+    ruta_json = os.path.join(carpeta, nombre_json)
+    with open(ruta_json, "w", encoding="utf-8") as f:
+        json.dump(datos_puntos, f, indent=2, ensure_ascii=False)
+
 def generar_galeria_html():
     """Genera una página HTML (reportes.html) que lista todos los mapas históricos."""
     ruta_base = "2.4"
@@ -181,7 +207,13 @@ def generar_galeria_html():
     # Ordenar por fecha descendente (lo más nuevo arriba)
     mapas.sort(key=lambda x: x['fecha'], reverse=True)
 
-    html = """<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reportes Paxbán - CONAP</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><div class="container py-5"><h1 class="text-success mb-4">📂 Histórico de Reportes (Carpeta 2.4)</h1><div class="row row-cols-1 row-cols-md-3 g-4">"""
+    html = """<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reportes Paxbán - CONAP</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="text-success m-0">📂 Histórico de Reportes (Carpeta 2.4)</h1>
+            <a href="./" class="btn btn-outline-success">🏠 Volver al Inicio</a>
+        </div>
+        <div class="row row-cols-1 row-cols-md-3 g-4">"""
     
     for m in mapas:
         html += f"""
@@ -278,6 +310,86 @@ def generar_mapa_imagen(puntos, concesiones=None):
         print(f"Error generando el mapa: {e}", file=sys.stderr)
         return None
 
+def generar_reporte_mensual():
+    """Genera el ZIP mensual con la estructura solicitada y envía correo."""
+    fecha_dt = datetime.utcnow() - timedelta(hours=6)
+    anio = fecha_dt.strftime("%Y")
+    mes = fecha_dt.strftime("%m")
+    
+    nombres_meses = {"01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril", "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto", "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"}
+    nombre_mes_es = nombres_meses.get(mes, "Mes_Actual")
+    
+    print(f"📦 Generando Reporte Mensual Estructurado: {nombre_mes_es} {anio}")
+    
+    # Nombre de la carpeta raíz del reporte
+    nombre_carpeta_raiz = f"{nombre_mes_es}" # Ejemplo: "Enero"
+    if os.path.exists(nombre_carpeta_raiz): shutil.rmtree(nombre_carpeta_raiz)
+    os.makedirs(nombre_carpeta_raiz)
+    
+    # 1. Carpeta: Reporte Diario (Todas las fotos de Petén y puntos de calor)
+    dir_diario = os.path.join(nombre_carpeta_raiz, "Reporte Diario")
+    os.makedirs(dir_diario, exist_ok=True)
+    origen_diario = os.path.join("2.4", anio, mes)
+    if os.path.exists(origen_diario):
+        for f in os.listdir(origen_diario):
+            shutil.copy2(os.path.join(origen_diario, f), dir_diario)
+            
+    # 2. Carpeta: Incendios Detectados (Solo incendios DENTRO de Paxbán)
+    dir_incendios = os.path.join(nombre_carpeta_raiz, "Incendios Detectados")
+    os.makedirs(dir_incendios, exist_ok=True)
+    origen_alertas = os.path.join("bitacora", anio, mes, "alertas")
+    if os.path.exists(origen_alertas):
+        for f in os.listdir(origen_alertas):
+            if f.endswith(".png"):
+                shutil.copy2(os.path.join(origen_alertas, f), dir_incendios)
+
+    # 3. Carpeta: Informe de Puntos de Calor (Resumen + Imágenes cerca de Paxbán)
+    dir_informe = os.path.join(nombre_carpeta_raiz, "Informe de Puntos de Calor")
+    os.makedirs(dir_informe, exist_ok=True)
+    
+    # Copiar imagenes de pre-alertas (cerca de Paxban)
+    origen_pre = os.path.join("bitacora", anio, mes, "pre_alertas")
+    if os.path.exists(origen_pre):
+        for f in os.listdir(origen_pre):
+            if f.endswith(".png"):
+                shutil.copy2(os.path.join(origen_pre, f), dir_informe)
+                
+    # Generar Resumen de Texto
+    resumen_txt = f"INFORME MENSUAL DE PUNTOS DE CALOR - {nombre_mes_es.upper()} {anio}\n\n"
+    resumen_txt += f"Concesión: Paxbán\nFecha de generación: {fecha_dt.strftime('%d/%m/%Y')}\n\n"
+    resumen_txt += "ESTADO DEL MES:\n"
+    
+    hay_incendios = len(os.listdir(dir_incendios)) > 0 if os.path.exists(dir_incendios) else False
+    hay_puntos_cerca = len(os.listdir(dir_informe)) > 0 if os.path.exists(dir_informe) else False
+    
+    if hay_incendios:
+        resumen_txt += "- SE DETECTARON incendios activos dentro de la concesión (Ver carpeta 'Incendios Detectados').\n"
+    else:
+        resumen_txt += "- NO se detectaron incendios activos dentro del polígono de Paxbán.\n"
+        
+    if hay_puntos_cerca:
+        resumen_txt += "- Se registraron puntos de calor en áreas aledañas (Ver imágenes en esta carpeta).\n"
+    
+    with open(os.path.join(dir_informe, "Resumen_Estado.txt"), "w") as f:
+        f.write(resumen_txt)
+
+    # Crear ZIP
+    zip_name = f"Reporte_Mensual_{nombre_mes_es}_{anio}"
+    shutil.make_archive(zip_name, 'zip', root_dir='.', base_dir=nombre_carpeta_raiz)
+    
+    # Mover ZIP a carpeta pública
+    os.makedirs("descargas", exist_ok=True)
+    ruta_final_zip = os.path.join("descargas", f"{zip_name}.zip")
+    shutil.move(f"{zip_name}.zip", ruta_final_zip)
+    shutil.rmtree(nombre_carpeta_raiz) # Limpiar carpeta temporal
+    
+    print(f"✅ ZIP generado exitosamente: {ruta_final_zip}")
+    
+    # Enviar Correo
+    link_descarga = f"https://JR23CR.github.io/alerta-paxban/descargas/{zip_name}.zip"
+    cuerpo = f"<html><body><h2>📂 Reporte Mensual: {nombre_mes_es} {anio}</h2><p>Se ha generado el archivo comprimido con las carpetas solicitadas (Reporte Diario, Incendios Detectados, Informe Puntos de Calor).</p><p><a href='{link_descarga}' style='background:#2e7d32;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;'>⬇️ Descargar Carpeta Mensual (.zip)</a></p></body></html>"
+    enviar_correo_alerta(cuerpo, asunto=f"Reporte Mensual {nombre_mes_es} {anio}")
+
 def cargar_concesiones(archivo_geojson):
     """Carga todas las áreas del GeoJSON en un diccionario de objetos Shapely."""
     concesiones = {}
@@ -289,6 +401,12 @@ def cargar_concesiones(archivo_geojson):
     return concesiones
 
 def obtener_incendios():
+    # Verificar si es solicitud de reporte mensual
+    action_type = os.environ.get("ACTION_TYPE", "monitor")
+    if action_type == "reporte_mensual":
+        generar_reporte_mensual()
+        return
+
     dict_concesiones = cargar_concesiones('concesiones1.geojson')
     print(f"Cargadas {len(dict_concesiones)} concesiones para monitoreo.")
 
@@ -425,6 +543,10 @@ def obtener_incendios():
         # Generar imagen del mapa para la alerta (mostrando contexto)
         imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
         
+        # --- Guardar en Bitácora para Reporte Mensual ---
+        if alertas: guardar_bitacora(imagen_bytes, "alertas", alertas)
+        if pre_alertas: guardar_bitacora(imagen_bytes, "pre_alertas", pre_alertas)
+        
         # --- Notificación por Telegram ---
         mensaje_telegram = "<b>🔥 Alerta Paxbán 🔥</b>\n"
         
@@ -529,7 +651,11 @@ def obtener_incendios():
             cuerpo_html += "</table>"
 
         cuerpo_html += """
-            <p style="font es un mensaje de alerta automática del Sistema Paxbán.<br>
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                <a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #2e7d32; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ver Galería de Descargas</a>
+            </div>
+            <p style="font-size: 0.9em; color: #555; margin-top: 20px;">
+                Este es un mensaje de alerta automática del Sistema Paxbán.<br>
                 Verifique la situación en campo.
                 <br><em>Desarrollado por JR23CR</em>
             </p>
