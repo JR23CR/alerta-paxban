@@ -683,7 +683,6 @@ def obtener_incendios():
 
         # --- Guardar copia local y generar galería WEB ---
         guardar_mapa_local(imagen_bytes)
-        generar_galeria_html()
 
         # --- Notificación por Telegram para reporte manual ---
         fecha_actual_telegram = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
@@ -747,6 +746,9 @@ def obtener_incendios():
         </html>
         """
         enviar_correo_alerta(cuerpo_html, asunto="Reporte de Monitoreo", imagen_mapa=imagen_bytes)
+
+    # --- Generar siempre la galería para asegurar que el archivo reportes.html exista en la web ---
+    generar_galeria_html()
 
 if __name__ == "__main__":
     obtener_incendios()
