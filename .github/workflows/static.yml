@@ -44,10 +44,9 @@ jobs:
       - name: Instalar GEOS
         run: sudo apt-get update && sudo apt-get install -y libgeos-dev
 
-      - name: Instalar dependencias
-        run: pip install -r requirements.txt
-      - name: Instalar librería Word
-        run: pip install python-docx
+      - name: Instalar TODAS las dependencias
+        # Instalamos explícitamente para evitar errores si requirements.txt está incompleto
+        run: pip install requests shapely pyproj matplotlib contextily python-docx xyzservices
 
       - name: Configurar Destinatarios y Modo
         run: |
