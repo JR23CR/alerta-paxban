@@ -89,7 +89,7 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
     except Exception as e:
         print(f"Error crítico: No se pudo enviar el correo de alerta. Causa: {e}", file=sys.stderr)
 
-def enviar_alerta_telegram(mensaje):
+def enviar_alerta_telegram(mensaje, imagen_bytes=None):
     """Envía un mensaje de texto a un chat de Telegram usando un Bot."""
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
@@ -97,19 +97,33 @@ def enviar_alerta_telegram(mensaje):
     if not all([BOT_TOKEN, CHAT_ID]):
         print("Advertencia: Faltan variables de entorno para Telegram. No se enviará el mensaje.", file=sys.stderr)
         return
-
-    api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     
-    # Datos del mensaje. Usamos parse_mode='HTML' para formato.
-    payload = {
-        'chat_id': CHAT_ID,
-        'text': mensaje,
-        'parse_mode': 'HTML'
-    }
+    if imagen_bytes:
+        # Enviar foto con texto (caption)
+        api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+        files = {'photo': ('mapa.png', imagen_bytes, 'image/png')}
+        data = {
+            'chat_id': CHAT_ID,
+            'caption': mensaje,
+            'parse_mode': 'HTML'
+        }
+    else:
+        # Enviar solo texto
+        api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        data = {
+            'chat_id': CHAT_ID,
+            'text': mensaje,
+            'parse_mode': 'HTML'
+        }
+        files = None
 
     try:
-        print(f"Enviando mensaje de Telegram al chat ID {CHAT_ID}...")
-        response = requests.post(api_url, json=payload, timeout=10)
+        print(f"Enviando notificación a Telegram ID {CHAT_ID}...")
+        if files:
+            response = requests.post(api_url, data=data, files=files, timeout=20)
+        else:
+            response = requests.post(api_url, json=data, timeout=10)
+            
         response.raise_for_status()
         if not response.json().get('ok'):
             print(f"Error en la respuesta de la API de Telegram: {response.text}", file=sys.stderr)
@@ -335,6 +349,7 @@ def obtener_incendios():
 
     if alertas or pre_alertas:
         # Generar imagen del mapa para la alerta (mostrando contexto)
+        imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
         
         # --- Notificación por Telegram ---
         mensaje_telegram = "<b>🔥 Alerta Paxbán 🔥</b>\n\nSe detectaron:\n"
@@ -344,10 +359,8 @@ def obtener_incendios():
             mensaje_telegram += f"- <b>{len(pre_alertas)}</b> pre-alertas cercanas.\n"
         
         mensaje_telegram += "\n<i>Revise su correo para ver el mapa y los detalles.</i>"
-        enviar_alerta_telegram(mensaje_telegram)
+        enviar_alerta_telegram(mensaje_telegram, imagen_bytes)
         # --- Fin Notificación por Telegram ---
-
-        imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
 
         # Reconstruyendo con f-string para simplicidad
         cuerpo_html = f"""
@@ -439,16 +452,17 @@ def obtener_incendios():
     elif force_report:
         print("ℹ️ No hay alertas, pero se enviará reporte de estado por solicitud manual.")
 
+        # Generar la imagen del mapa con TODOS los puntos detectados
+        imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
+
         # --- Notificación por Telegram para reporte manual ---
         fecha_actual_telegram = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
         mensaje_telegram = f"<b>✅ Reporte de Monitoreo Paxbán</b>\n\n"
         mensaje_telegram += f"No se han detectado amenazas directas. Estado a las {fecha_actual_telegram}.\n"
         mensaje_telegram += f"Puntos analizados en la región: {len(base_datos)}."
-        enviar_alerta_telegram(mensaje_telegram)
+        enviar_alerta_telegram(mensaje_telegram, imagen_bytes)
         # --- Fin Notificación por Telegram ---
         
-        # Generar la imagen del mapa con TODOS los puntos detectados
-        imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
         fecha_actual = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
 
         cuerpo_html = f"""
