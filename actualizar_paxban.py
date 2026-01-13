@@ -89,6 +89,34 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
     except Exception as e:
         print(f"Error crítico: No se pudo enviar el correo de alerta. Causa: {e}", file=sys.stderr)
 
+def enviar_alerta_telegram(mensaje):
+    """Envía un mensaje de texto a un chat de Telegram usando un Bot."""
+    BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
+    CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
+    if not all([BOT_TOKEN, CHAT_ID]):
+        print("Advertencia: Faltan variables de entorno para Telegram. No se enviará el mensaje.", file=sys.stderr)
+        return
+
+    api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    
+    # Datos del mensaje. Usamos parse_mode='HTML' para formato.
+    payload = {
+        'chat_id': CHAT_ID,
+        'text': mensaje,
+        'parse_mode': 'HTML'
+    }
+
+    try:
+        print(f"Enviando mensaje de Telegram al chat ID {CHAT_ID}...")
+        response = requests.post(api_url, json=payload, timeout=10)
+        response.raise_for_status()
+        if not response.json().get('ok'):
+            print(f"Error en la respuesta de la API de Telegram: {response.text}", file=sys.stderr)
+        print("✅ Mensaje de Telegram enviado exitosamente.")
+    except requests.exceptions.RequestException as e:
+        print(f"Error crítico: No se pudo enviar el mensaje de Telegram. Causa: {e}", file=sys.stderr)
+
 def generar_mapa_imagen(puntos, concesiones=None):
     """Genera una imagen PNG del mapa de Petén con los puntos de calor."""
     print("Generando imagen del mapa...")
@@ -307,6 +335,18 @@ def obtener_incendios():
 
     if alertas or pre_alertas:
         # Generar imagen del mapa para la alerta (mostrando contexto)
+        
+        # --- Notificación por Telegram ---
+        mensaje_telegram = "<b>🔥 Alerta Paxbán 🔥</b>\n\nSe detectaron:\n"
+        if alertas:
+            mensaje_telegram += f"- <b>{len(alertas)}</b> incendios confirmados.\n"
+        if pre_alertas:
+            mensaje_telegram += f"- <b>{len(pre_alertas)}</b> pre-alertas cercanas.\n"
+        
+        mensaje_telegram += "\n<i>Revise su correo para ver el mapa y los detalles.</i>"
+        enviar_alerta_telegram(mensaje_telegram)
+        # --- Fin Notificación por Telegram ---
+
         imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
 
         cuerpo_html = """
@@ -381,8 +421,7 @@ def obtener_incendios():
                 </tr>
         """
 
-        for alerta in alertas:
-            cuerpo_html += f"""
+        for alerta in l += f"""
                 <tr>
                     <td><strong>{alerta['concesion']}</strong></td>
                     <td>{alerta['gtm']}</td>
@@ -392,10 +431,36 @@ def obtener_incendios():
                     <td>{alerta['fecha']}</td>
                 </tr>
             """
+        cuerpo_html += "</table>"
+
+        if pre_alertas:
+            cuerpo_html += f"""
+            <h3 style="color: #f57c00;">⚠️ PRE-ALERTAS en zona de seguridad (10km) ({len(pre_alertas)})</h3>
+            <table>
+                <tr>
+                    <th>Distancia a Paxbán</th>
+                    <th>Coordenadas GTM</th>
+                    <th>Lat/Lon</th>
+                    <th>Satélite</th>
+                    <th>Antigüedad</th>
+                    <th>Fecha (UTC)</th>
+                </tr>
+            """
+            for pre_alerta in sorted(pre_alertas, key=lambda x: x['distancia']):
+                cuerpo_html += f"""
+                    <tr>
+                        <td><strong>{pre_alerta['distancia']}</strong></td>
+                        <td>{pre_alerta['gtm']}</td>
+                        <td>{pre_alerta['lat']:.4f}, {pre_alerta['lon']:.4f}</td>
+                        <td>{pre_alerta['sat']}</td>
+                        <td>{pre_alerta['horas']:.1f} horas</td>
+                        <td>{pre_alerta['fecha']}</td>
+                    </tr>
+                """
+            cuerpo_html += "</table>"
+
         cuerpo_html += """
-            </table>
-            <p style="font-size: 0.9em; color: #666; margin-top: 20px;">
-                Este es un mensaje de alerta automática del Sistema Paxbán.<br>
+            <p style="font es un mensaje de alerta automática del Sistema Paxbán.<br>
                 Verifique la situación en campo.
                 <br><em>Desarrollado por JR23CR</em>
             </p>
@@ -405,6 +470,14 @@ def obtener_incendios():
         enviar_correo_alerta(cuerpo_html, imagen_mapa=imagen_bytes)
     elif force_report:
         print("ℹ️ No hay alertas, pero se enviará reporte de estado por solicitud manual.")
+
+        # --- Notificación por Telegram para reporte manual ---
+        fecha_actual_telegram = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
+        mensaje_telegram = f"<b>✅ Reporte de Monitoreo Paxbán</b>\n\n"
+        mensaje_telegram += f"No se han detectado amenazas directas. Estado a las {fecha_actual_telegram}.\n"
+        mensaje_telegram += f"Puntos analizados en la región: {len(base_datos)}."
+        enviar_alerta_telegram(mensaje_telegram)
+        # --- Fin Notificación por Telegram ---
         
         # Generar la imagen del mapa con TODOS los puntos detectados
         imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
