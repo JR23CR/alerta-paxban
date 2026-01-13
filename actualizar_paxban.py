@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt # noqa: E402
 import contextily as cx # noqa: E402
+from matplotlib.lines import Line2D # noqa: E402
 
 try:
     from pyproj import Transformer # noqa: E402
@@ -136,6 +137,66 @@ def enviar_alerta_telegram(mensaje, imagen_bytes=None):
         except requests.exceptions.RequestException as e:
             print(f"Error crítico: No se pudo enviar el mensaje de Telegram a {chat_id}. Causa: {e}", file=sys.stderr)
 
+def guardar_mapa_local(imagen_bytes):
+    """Guarda la imagen en la estructura de carpetas 2.4/Año/Mes para CONAP."""
+    if not imagen_bytes:
+        return
+
+    # Obtener fecha actual (UTC-6 para Guatemala)
+    fecha_dt = datetime.utcnow() - timedelta(hours=6)
+    anio = fecha_dt.strftime("%Y")
+    mes = fecha_dt.strftime("%m")
+    fecha_str = fecha_dt.strftime("%Y-%m-%d")
+    
+    # Crear estructura de directorios: 2.4/2026/01/
+    carpeta = os.path.join("2.4", anio, mes)
+    os.makedirs(carpeta, exist_ok=True)
+    
+    nombre_archivo = f"Mapa_Calor_{fecha_str}.png"
+    ruta_completa = os.path.join(carpeta, nombre_archivo)
+    
+    with open(ruta_completa, "wb") as f:
+        f.write(imagen_bytes)
+    print(f"✅ Mapa guardado para CONAP en: {ruta_completa}")
+
+def generar_galeria_html():
+    """Genera una página HTML (reportes.html) que lista todos los mapas históricos."""
+    ruta_base = "2.4"
+    if not os.path.exists(ruta_base):
+        return
+
+    mapas = []
+    for root, dirs, files in os.walk(ruta_base):
+        for file in files:
+            if file.endswith(".png"):
+                ruta_completa = os.path.join(root, file)
+                # Convertir ruta a URL relativa
+                url = ruta_completa.replace(os.sep, '/')
+                mapas.append({
+                    "url": url,
+                    "nombre": file,
+                    "fecha": file.replace("Mapa_Calor_", "").replace(".png", "")
+                })
+    
+    # Ordenar por fecha descendente (lo más nuevo arriba)
+    mapas.sort(key=lambda x: x['fecha'], reverse=True)
+
+    html = """<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reportes Paxbán - CONAP</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><div class="container py-5"><h1 class="text-success mb-4">📂 Histórico de Reportes (Carpeta 2.4)</h1><div class="row row-cols-1 row-cols-md-3 g-4">"""
+    
+    for m in mapas:
+        html += f"""
+        <div class="col"><div class="card h-100 shadow-sm">
+            <img src="{m['url']}" class="card-img-top" alt="{m['nombre']}" loading="lazy" style="height: 250px; object-fit: cover;">
+            <div class="card-body"><h5 class="card-title">{m['fecha']}</h5><p class="card-text text-muted small">{m['nombre']}</p>
+            <a href="{m['url']}" class="btn btn-primary btn-sm" download>⬇️ Descargar</a> <a href="{m['url']}" class="btn btn-outline-secondary btn-sm" target="_blank">🔍 Ver</a>
+        </div></div></div>"""
+
+    html += """</div></div></body></html>"""
+    
+    with open("reportes.html", "w", encoding="utf-8") as f:
+        f.write(html)
+    print("✅ Galería Web generada: reportes.html")
+
 def generar_mapa_imagen(puntos, concesiones=None):
     """Genera una imagen PNG del mapa de Petén con los puntos de calor."""
     print("Generando imagen del mapa...")
@@ -186,6 +247,14 @@ def generar_mapa_imagen(puntos, concesiones=None):
         if xs:
             ax.scatter(xs, ys, c=colores, s=50, alpha=0.8, edgecolors='white', linewidth=1, zorder=2)
         
+        # Agregar Leyenda para CONAP (24h, 48h, 72h)
+        legend_elements = [
+            Line2D([0], [0], marker='o', color='w', label='< 24 horas', markerfacecolor='red', markersize=10),
+            Line2D([0], [0], marker='o', color='w', label='24 - 48 horas', markerfacecolor='orange', markersize=10),
+            Line2D([0], [0], marker='o', color='w', label='48 - 72 horas', markerfacecolor='yellow', markersize=10)
+        ]
+        ax.legend(handles=legend_elements, loc='upper right', title="Puntos de Calor")
+
         # Definir límites del mapa (Petén aproximado) si no hay suficientes puntos para auto-escala
         # O para asegurar que siempre se vea Petén
         minx, miny = transformer.transform(-91.5, 15.8) # Suroeste
@@ -473,6 +542,10 @@ def obtener_incendios():
 
         # Generar la imagen del mapa con TODOS los puntos detectados
         imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
+
+        # --- Guardar copia local y generar galería WEB ---
+        guardar_mapa_local(imagen_bytes)
+        generar_galeria_html()
 
         # --- Notificación por Telegram para reporte manual ---
         fecha_actual_telegram = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")

@@ -69,6 +69,20 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python actualizar_paxban.py
 
+      - name: Guardar Reporte en Repositorio
+        if: env.FORCE_REPORT == 'true' # Solo guardar si es reporte diario/manual
+        run: |
+          git config --global user.name "Paxban Bot"
+          git config --global user.email "bot@paxban.com"
+          git add 2.4/ reportes.html
+          # Solo hacer commit si hay cambios para evitar errores
+          if git diff --staged --quiet; then
+            echo "No hay cambios en los mapas."
+          else
+            git commit -m "🗺️ Reporte Diario: Mapa y Galería Web [skip ci]"
+            git push
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
