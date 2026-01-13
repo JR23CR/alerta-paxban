@@ -349,39 +349,6 @@ def obtener_incendios():
 
         imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
 
-        cuerpo_html = """
-        <html>
-        <head>
-            <style>
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; }
-                h2 { color: #d32f2f; }
-                table { border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 0.9em; }
-                th, td { border: 1px solid #dddddd; text-align: left; padding: 10px; }
-                th { background-color: #f2f2f2; }
-                .map-container { text-align: center; margin: 20px 0; }
-                img { max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px; }
-            </style>
-        </head>
-        <body>
-            <h2>🚨 Alerta de Incendios en Concesiones Forestales</h2>
-            <p>Se han detectado <strong>{len(alertas)}</strong> focos de incendio activos dentro de las áreas monitoreadas.</p>
-            
-            <div class="map-container">
-                <img src="cid:mapa_peten" alt="Mapa de Alerta">
-            </div>
-
-            <table>
-                <tr>
-                    <th>Concesión</th>
-                    <th>Distancia a Paxbán</th>
-                    <th>Coordenadas GTM</th>
-                    <th>Lat/Lon</th>
-                    <th>Satélite</th>
-                    <th>Antigüedad</th>
-                    <th>Fecha (UTC)</th>
-                </tr>
-        """.format(len=len) # Usar format para len(alertas) si es necesario, o f-string arriba
-        
         # Reconstruyendo con f-string para simplicidad
         cuerpo_html = f"""
         <html>
@@ -421,7 +388,8 @@ def obtener_incendios():
                 </tr>
         """
 
-        for alerta in l += f"""
+        for alerta in alertas:
+            cuerpo_html += f"""
                 <tr>
                     <td><strong>{alerta['concesion']}</strong></td>
                     <td>{alerta['gtm']}</td>
