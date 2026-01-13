@@ -8,6 +8,7 @@ from io import BytesIO
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
+from email.mime.application import MIMEApplication
 
 import requests
 from shapely.geometry import shape, Point
@@ -47,7 +48,7 @@ def convertir_a_gtm(lon, lat):
         print(f"Error convirtiendo coordenadas: {e}", file=sys.stderr)
         return "No disponible"
 
-def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio en Concesión Forestal", imagen_mapa=None):
+def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio en Concesión Forestal", imagen_mapa=None, archivo_zip=None):
     """Envía un correo electrónico de alerta usando credenciales de entorno."""
     SMTP_SERVER = os.environ.get("SMTP_SERVER")
     SMTP_PORT = os.environ.get("SMTP_PORT")
@@ -82,6 +83,13 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
             img.add_header('Content-ID', '<mapa_peten>')
             img.add_header('Content-Disposition', 'inline', filename='mapa_peten.png')
             msg.attach(img)
+            
+        # Adjuntar archivo ZIP si existe (Reporte Mensual)
+        if archivo_zip:
+            nombre_archivo, datos_archivo = archivo_zip
+            part = MIMEApplication(datos_archivo, Name=nombre_archivo)
+            part['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+            msg.attach(part)
 
         with smtplib.SMTP(SMTP_SERVER, int(SMTP_PORT)) as server:
             server.starttls()
@@ -385,10 +393,14 @@ def generar_reporte_mensual():
     
     print(f"✅ ZIP generado exitosamente: {ruta_final_zip}")
     
+    # Leer el archivo ZIP para adjuntarlo
+    with open(ruta_final_zip, "rb") as f:
+        zip_bytes = f.read()
+    
     # Enviar Correo
     link_descarga = f"https://JR23CR.github.io/alerta-paxban/descargas/{zip_name}.zip"
-    cuerpo = f"<html><body><h2>📂 Reporte Mensual: {nombre_mes_es} {anio}</h2><p>Se ha generado el archivo comprimido con las carpetas solicitadas (Reporte Diario, Incendios Detectados, Informe Puntos de Calor).</p><p><a href='{link_descarga}' style='background:#2e7d32;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;'>⬇️ Descargar Carpeta Mensual (.zip)</a></p></body></html>"
-    enviar_correo_alerta(cuerpo, asunto=f"Reporte Mensual {nombre_mes_es} {anio}")
+    cuerpo = f"<html><body><h2>📂 Reporte Mensual: {nombre_mes_es} {anio}</h2><p>Adjunto encontrará el archivo comprimido con las carpetas solicitadas (Reporte Diario, Incendios Detectados, Informe Puntos de Calor).</p><p>También puede descargarlo desde el siguiente enlace si el adjunto falla:</p><p><a href='{link_descarga}' style='background:#2e7d32;color:white;padding:10px 20px;text-decoration:none;border-radius:5px;'>⬇️ Descargar Carpeta Mensual (.zip)</a></p></body></html>"
+    enviar_correo_alerta(cuerpo, asunto=f"Reporte Mensual {nombre_mes_es} {anio}", archivo_zip=(f"{zip_name}.zip", zip_bytes))
 
 def cargar_concesiones(archivo_geojson):
     """Carga todas las áreas del GeoJSON en un diccionario de objetos Shapely."""
