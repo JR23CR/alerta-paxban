@@ -46,6 +46,8 @@ jobs:
 
       - name: Instalar dependencias
         run: pip install -r requirements.txt
+      - name: Instalar librería Word
+        run: pip install python-docx
 
       - name: Configurar Destinatarios y Modo
         run: |
@@ -95,6 +97,8 @@ jobs:
         run: |
           git config --global user.name "Paxban Bot"
           git config --global user.email "bot@paxban.com"
+          # Sincronizar antes de agregar para evitar error 128
+          git pull --rebase origin main || echo "Nada que actualizar"
           git add 2.4/ bitacora/ descargas/ reportes.html
           # Solo hacer commit si hay cambios para evitar errores
           if git diff --staged --quiet; then

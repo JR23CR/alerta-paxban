@@ -27,6 +27,13 @@ except ImportError:
     Transformer = None
     print("Advertencia: pyproj no está instalado. Las coordenadas GTM no se calcularán.", file=sys.stderr)
 
+try:
+    from docx import Document
+    from docx.shared import Inches, Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+except ImportError:
+    Document = None
+
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
 def convertir_a_gtm(lon, lat):
@@ -346,9 +353,11 @@ def generar_reporte_mensual():
     dir_incendios = os.path.join(nombre_carpeta_raiz, "Incendios Detectados")
     os.makedirs(dir_incendios, exist_ok=True)
     origen_alertas = os.path.join("bitacora", anio, mes, "alertas")
+    count_incendios = 0
     if os.path.exists(origen_alertas):
         for f in os.listdir(origen_alertas):
             if f.endswith(".png"):
+                count_incendios += 1
                 shutil.copy2(os.path.join(origen_alertas, f), dir_incendios)
 
     # 3. Carpeta: Informe de Puntos de Calor (Resumen + Imágenes cerca de Paxbán)
@@ -357,29 +366,25 @@ def generar_reporte_mensual():
     
     # Copiar imagenes de pre-alertas (cerca de Paxban)
     origen_pre = os.path.join("bitacora", anio, mes, "pre_alertas")
+    count_pre = 0
     if os.path.exists(origen_pre):
         for f in os.listdir(origen_pre):
             if f.endswith(".png"):
+                count_pre += 1
                 shutil.copy2(os.path.join(origen_pre, f), dir_informe)
                 
-    # Generar Resumen de Texto
-    resumen_txt = f"INFORME MENSUAL DE PUNTOS DE CALOR - {nombre_mes_es.upper()} {anio}\n\n"
-    resumen_txt += f"Concesión: Paxbán\nFecha de generación: {fecha_dt.strftime('%d/%m/%Y')}\n\n"
-    resumen_txt += "ESTADO DEL MES:\n"
+    # --- Generar Informe Profesional en Word ---
+    stats = {'incendios': count_incendios, 'pre_alertas': count_pre}
     
-    hay_incendios = len(os.listdir(dir_incendios)) > 0 if os.path.exists(dir_incendios) else False
-    hay_puntos_cerca = len(os.listdir(dir_informe)) > 0 if os.path.exists(dir_informe) else False
-    
-    if hay_incendios:
-        resumen_txt += "- SE DETECTARON incendios activos dentro de la concesión (Ver carpeta 'Incendios Detectados').\n"
-    else:
-        resumen_txt += "- NO se detectaron incendios activos dentro del polígono de Paxbán.\n"
-        
-    if hay_puntos_cerca:
-        resumen_txt += "- Se registraron puntos de calor en áreas aledañas (Ver imágenes en esta carpeta).\n"
-    
-    with open(os.path.join(dir_informe, "Resumen_Estado.txt"), "w") as f:
-        f.write(resumen_txt)
+    # Buscar una imagen reciente para el reporte
+    img_ejemplo = None
+    if os.path.exists(dir_diario):
+        fotos = [f for f in os.listdir(dir_diario) if f.endswith('.png')]
+        if fotos:
+            img_ejemplo = os.path.join(dir_diario, sorted(fotos)[-1]) # La última foto
+            
+    ruta_word = os.path.join(dir_informe, f"Informe_Mensual_{nombre_mes_es}.docx")
+    crear_informe_word(ruta_word, nombre_mes_es, anio, stats, img_ejemplo)
 
     # Crear ZIP
     zip_name = f"Reporte_Mensual_{nombre_mes_es}_{anio}"
@@ -413,12 +418,6 @@ def cargar_concesiones(archivo_geojson):
     return concesiones
 
 def obtener_incendios():
-    # Verificar si es solicitud de reporte mensual
-    action_type = os.environ.get("ACTION_TYPE", "monitor")
-    if action_type == "reporte_mensual":
-        generar_reporte_mensual()
-        return
-
     dict_concesiones = cargar_concesiones('concesiones1.geojson')
     print(f"Cargadas {len(dict_concesiones)} concesiones para monitoreo.")
 
@@ -749,6 +748,11 @@ def obtener_incendios():
 
     # --- Generar siempre la galería para asegurar que el archivo reportes.html exista en la web ---
     generar_galeria_html()
+
+    # --- Verificar si se solicitó reporte mensual (AL FINAL, para incluir lo de hoy) ---
+    action_type = os.environ.get("ACTION_TYPE", "monitor")
+    if action_type == "reporte_mensual":
+        generar_reporte_mensual()
 
 if __name__ == "__main__":
     obtener_incendios()
