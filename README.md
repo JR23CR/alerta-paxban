@@ -26,6 +26,7 @@ Este software opera en la nube integrando datos satelitales en tiempo real con a
 
 ### 4. Interfaz Web de Visualización
 *   **Mapa Interactivo**: Plataforma web accesible desde cualquier navegador para visualizar la situación actual.
+*   **[📂 Galería de Reportes y Descargas](reportes.html)**: Acceso directo al histórico de mapas generados para descarga en alta resolución.
 *   **Filtros Temporales**: Capacidad de filtrar focos de calor por antigüedad (últimas 24h, 48h, 72h) con código de colores (Rojo, Naranja, Amarillo).
 *   **Capas Base**: Opciones de visualización entre mapa topográfico (NatGeo), imágenes satelitales (Esri) y callejero (OSM).
 

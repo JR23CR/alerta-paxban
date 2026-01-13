@@ -188,7 +188,7 @@ def generar_galeria_html():
         <div class="col"><div class="card h-100 shadow-sm">
             <img src="{m['url']}" class="card-img-top" alt="{m['nombre']}" loading="lazy" style="height: 250px; object-fit: cover;">
             <div class="card-body"><h5 class="card-title">{m['fecha']}</h5><p class="card-text text-muted small">{m['nombre']}</p>
-            <a href="{m['url']}" class="btn btn-primary btn-sm" download>⬇️ Descargar</a> <a href="{m['url']}" class="btn btn-outline-secondary btn-sm" target="_blank">🔍 Ver</a>
+            <a href="{m['url']}" class="btn btn-primary btn-sm" download target="_blank" style="text-decoration: none;">⬇️ Descargar</a> <a href="{m['url']}" class="btn btn-outline-secondary btn-sm" target="_blank" style="text-decoration: none;">🔍 Ver</a>
         </div></div></div>"""
 
     html += """</div></div></body></html>"""
@@ -591,6 +591,12 @@ def obtener_incendios():
                     
                     <div style="text-align: center; margin-top: 20px;">
                         <img src="cid:mapa_peten" alt="Mapa de Situación Petén" style="max-width: 100%; height: auto; border: 1px solid #ccc; border-radius: 4px;">
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+                        <p><strong>📂 Histórico y Descargas</strong></p>
+                        <p>Para descargar este mapa en alta resolución o consultar fechas anteriores:</p>
+                        <a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #2e7d32; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">⬇️ Ir a Galería de Descargas</a>
                     </div>
                 </div>
                 <div class="footer">
