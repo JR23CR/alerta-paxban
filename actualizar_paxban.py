@@ -90,46 +90,51 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Temprana de Incendio e
         print(f"Error crítico: No se pudo enviar el correo de alerta. Causa: {e}", file=sys.stderr)
 
 def enviar_alerta_telegram(mensaje, imagen_bytes=None):
-    """Envía un mensaje de texto a un chat de Telegram usando un Bot."""
+    """Envía un mensaje de texto a uno o varios chats de Telegram usando un Bot."""
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
-    CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+    CHAT_IDS_RAW = os.environ.get("TELEGRAM_CHAT_ID")
 
-    if not all([BOT_TOKEN, CHAT_ID]):
+    if not all([BOT_TOKEN, CHAT_IDS_RAW]):
         print("Advertencia: Faltan variables de entorno para Telegram. No se enviará el mensaje.", file=sys.stderr)
         return
     
-    if imagen_bytes:
-        # Enviar foto con texto (caption)
-        api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-        files = {'photo': ('mapa.png', imagen_bytes, 'image/png')}
-        data = {
-            'chat_id': CHAT_ID,
-            'caption': mensaje,
-            'parse_mode': 'HTML'
-        }
-    else:
-        # Enviar solo texto
-        api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-        data = {
-            'chat_id': CHAT_ID,
-            'text': mensaje,
-            'parse_mode': 'HTML'
-        }
-        files = None
+    # Permitir múltiples destinatarios separados por coma
+    chat_ids = [cid.strip() for cid in CHAT_IDS_RAW.split(',') if cid.strip()]
 
-    try:
-        print(f"Enviando notificación a Telegram ID {CHAT_ID}...")
-        if files:
-            response = requests.post(api_url, data=data, files=files, timeout=20)
+    for chat_id in chat_ids:
+        if imagen_bytes:
+            # Enviar foto con texto (caption)
+            api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
+            files = {'photo': ('mapa.png', imagen_bytes, 'image/png')}
+            data = {
+                'chat_id': chat_id,
+                'caption': mensaje,
+                'parse_mode': 'HTML'
+            }
         else:
-            response = requests.post(api_url, json=data, timeout=10)
-            
-        response.raise_for_status()
-        if not response.json().get('ok'):
-            print(f"Error en la respuesta de la API de Telegram: {response.text}", file=sys.stderr)
-        print("✅ Mensaje de Telegram enviado exitosamente.")
-    except requests.exceptions.RequestException as e:
-        print(f"Error crítico: No se pudo enviar el mensaje de Telegram. Causa: {e}", file=sys.stderr)
+            # Enviar solo texto
+            api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+            data = {
+                'chat_id': chat_id,
+                'text': mensaje,
+                'parse_mode': 'HTML'
+            }
+            files = None
+
+        try:
+            print(f"Enviando notificación a Telegram ID {chat_id}...")
+            if files:
+                response = requests.post(api_url, data=data, files=files, timeout=20)
+            else:
+                response = requests.post(api_url, json=data, timeout=10)
+                
+            response.raise_for_status()
+            if not response.json().get('ok'):
+                print(f"Error en la respuesta de la API de Telegram: {response.text}", file=sys.stderr)
+            else:
+                print(f"✅ Mensaje de Telegram enviado exitosamente a {chat_id}.")
+        except requests.exceptions.RequestException as e:
+            print(f"Error crítico: No se pudo enviar el mensaje de Telegram a {chat_id}. Causa: {e}", file=sys.stderr)
 
 def generar_mapa_imagen(puntos, concesiones=None):
     """Genera una imagen PNG del mapa de Petén con los puntos de calor."""
