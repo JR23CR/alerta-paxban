@@ -357,13 +357,27 @@ def obtener_incendios():
         imagen_bytes = generar_mapa_imagen(base_datos, dict_concesiones)
         
         # --- Notificación por Telegram ---
-        mensaje_telegram = "<b>🔥 Alerta Paxbán 🔥</b>\n\nSe detectaron:\n"
-        if alertas:
-            mensaje_telegram += f"- <b>{len(alertas)}</b> incendios confirmados.\n"
-        if pre_alertas:
-            mensaje_telegram += f"- <b>{len(pre_alertas)}</b> pre-alertas cercanas.\n"
+        mensaje_telegram = "<b>🔥 Alerta Paxbán 🔥</b>\n"
         
-        mensaje_telegram += "\n<i>Revise su correo para ver el mapa y los detalles.</i>"
+        if alertas:
+            mensaje_telegram += f"\n<b>🚨 INCENDIOS CONFIRMADOS ({len(alertas)})</b>\n"
+            for a in sorted(alertas, key=lambda x: x['concesion'])[:10]:
+                mensaje_telegram += f"• <b>{a['concesion']}</b>\n"
+                mensaje_telegram += f"  📍 {a['gtm']}\n"
+                mensaje_telegram += f"  🛰 {a['sat']} ({a['horas']:.1f}h)\n"
+            if len(alertas) > 10:
+                mensaje_telegram += f"<i>... y {len(alertas)-10} más.</i>\n"
+
+        if pre_alertas:
+            mensaje_telegram += f"\n<b>⚠️ PRE-ALERTAS 10km ({len(pre_alertas)})</b>\n"
+            for p in sorted(pre_alertas, key=lambda x: x['distancia'])[:10]:
+                mensaje_telegram += f"• <b>{p['distancia']} de Paxbán</b>\n"
+                mensaje_telegram += f"  📍 {p['gtm']}\n"
+                mensaje_telegram += f"  🛰 {p['sat']} ({p['horas']:.1f}h)\n"
+            if len(pre_alertas) > 10:
+                mensaje_telegram += f"<i>... y {len(pre_alertas)-10} más.</i>\n"
+        
+        mensaje_telegram += "\n<i>Ver mapa adjunto y correo para más detalles.</i>"
         enviar_alerta_telegram(mensaje_telegram, imagen_bytes)
         # --- Fin Notificación por Telegram ---
 
