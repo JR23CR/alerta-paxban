@@ -332,9 +332,11 @@ def generar_reporte_mensual():
         <html><head><style>
             @media print {{
                 @page {{ margin: 0.5cm; }} 
-                body {{ font-family: Arial, sans-serif; font-size: 10pt; }} 
-                h2 {{ color: #1565C0; margin-top: 0; font-size: 14pt; }}
-                .info-box {{ background-color: #e3f2fd !important; border-left: 5px solid #1565C0 !important; -webkit-print-color-adjust: exact; padding: 10px !important; margin: 10px 0 !important; }}
+                body {{ font-family: Arial, sans-serif; font-size: 9pt; }} 
+                h2 {{ color: #1565C0; margin-top: 0; font-size: 12pt; margin-bottom: 5px; }}
+                .info-box {{ background-color: #e3f2fd !important; border-left: 5px solid #1565C0 !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 5px 0 !important; }}
+                table {{ margin-bottom: 5px !important; }}
+                td {{ padding-bottom: 0 !important; }}
                 .no-print {{ display: none; }}
             }}
         </style></head><body>
@@ -462,13 +464,13 @@ def main():
         <style>
             @media print {{
                 @page {{ margin: 0.5cm; }}
-                body {{ font-family: Arial, sans-serif; font-size: 10pt; }}
-                h2 {{ color: #D32F2F; margin-top: 0; font-size: 14pt; }}
-                .alert-box {{ background-color: #ffcdd2 !important; border-left: 5px solid #D32F2F !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 10px 0 !important; }}
-                table {{ width: 100%; border-collapse: collapse; font-size: 9pt; }}
-                th {{ background-color: #ef5350 !important; color: white !important; -webkit-print-color-adjust: exact; padding: 4px; }}
-                td {{ padding: 4px; border: 1px solid #ddd; }}
-                img {{ max-height: 350px !important; width: auto; display: block; margin: 5px auto; }}
+                body {{ font-family: Arial, sans-serif; font-size: 9pt; }}
+                h2 {{ color: #D32F2F; margin-top: 0; font-size: 12pt; margin-bottom: 5px; }}
+                .alert-box {{ background-color: #ffcdd2 !important; border-left: 5px solid #D32F2F !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 5px 0 !important; }}
+                table {{ width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 5px !important; }}
+                th {{ background-color: #ef5350 !important; color: white !important; -webkit-print-color-adjust: exact; padding: 2px; }}
+                td {{ padding: 2px; border: 1px solid #ddd; }}
+                img {{ max-height: 300px !important; width: auto; display: block; margin: 5px auto; }}
                 .no-print {{ display: none; }}
             }}
         </style>
@@ -531,11 +533,13 @@ def main():
         <style>
             @media print {{
                 @page {{ margin: 0.5cm; }}
-                body {{ font-family: Arial, sans-serif; font-size: 10pt; }}
-                h2 {{ color: #2E7D32; margin-top: 0; font-size: 14pt; }}
-                .status-box {{ background-color: #e8f5e9 !important; border-left: 5px solid #2e7d32 !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 10px 0 !important; }}
-                img {{ max-height: 400px !important; width: auto; display: block; margin: 5px auto; }}
-                p {{ margin: 5px 0; }}
+                body {{ font-family: Arial, sans-serif; font-size: 9pt; }}
+                h2 {{ color: #2E7D32; margin-top: 0; font-size: 12pt; margin-bottom: 5px; }}
+                .status-box {{ background-color: #e8f5e9 !important; border-left: 5px solid #2e7d32 !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 5px 0 !important; }}
+                img {{ max-height: 320px !important; width: auto; display: block; margin: 5px auto; }}
+                p {{ margin: 2px 0; }}
+                table {{ margin-bottom: 5px !important; }}
+                td {{ padding-bottom: 0 !important; }}
                 .no-print {{ display: none; }}
             }}
         </style>
