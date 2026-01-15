@@ -4,7 +4,7 @@ import json
 import smtplib
 import shutil
 import traceback
-import math
+giimport math
 from datetime import datetime, timedelta
 from io import BytesIO
 from email.mime.multipart import MIMEMultipart
@@ -458,30 +458,7 @@ def main():
                                     elif poly.distance(p) < 0.09:
                                         en_prealerta = True
                                         concesion_nombre = "Zona de Amortiguamiento"
-                                        
-                                        # Calcular distancia y dirección exacta en metros
-                                        if Transformer:
-                                            try:
-                                                proj_gtm_str = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-                                                trans_to_meter = Transformer.from_crs("EPSG:4326", proj_gtm_str, always_xy=True)
-                                                
-                                                p_meter = transform(trans_to_meter.transform, p)
-                                                poly_meter = transform(trans_to_meter.transform, poly)
-                                                
-                                                dist_meters = poly_meter.distance(p_meter)
-                                                p_near = nearest_points(poly_meter, p_meter)[0]
-                                                
-                                                dx = p_meter.x - p_near.x
-                                                dy = p_meter.y - p_near.y
-                                                angle = math.degrees(math.atan2(dy, dx))
-                                                
-                                                if -45 <= angle <= 45: direction = "Este"
-                                                elif 45 < angle <= 135: direction = "Norte"
-                                                elif -135 <= angle < -45: direction = "Sur"
-                                                else: direction = "Oeste"
-                                                
-                                                dist_info = f"{int(dist_meters)} metros del límite {direction}"
-                                            except: pass
+                                        dist_info = calcular_distancia_direccion(p, poly)
                             
                             # Calcular antigüedad
                             dt = datetime.strptime(f"{d[5]} {d[6]}", "%Y-%m-%d %H%M")
