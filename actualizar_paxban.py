@@ -48,6 +48,33 @@ MESES_ES = {
     "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
 }
 
+CAMPAMENTOS = [
+    {"nombre": "Paxbán", "x": 541459.545, "y": 1968309.168},
+    {"nombre": "El Guiro", "x": 546526.26, "y": 1966445.116},
+    {"nombre": "Las corrientes", "x": 548522.604, "y": 1963905.742},
+    {"nombre": "El Carrizal", "x": 549089.113, "y": 1960904.892},
+    {"nombre": "Los campitos", "x": 542354.499, "y": 1962816.912},
+    {"nombre": "Ojo de agua", "x": 539679.072, "y": 1960737.306},
+    {"nombre": "El Tiempo", "x": 544849.236, "y": 1958376.547},
+    {"nombre": "La Reforma", "x": 528989.788, "y": 1963524.435},
+    {"nombre": "El Magueyal", "x": 526593.273, "y": 1967097.684},
+    {"nombre": "El Mapache", "x": 520451.541, "y": 1965656.699},
+    {"nombre": "La Pepesca", "x": 517819.874, "y": 1968240.009},
+    {"nombre": "La Lagartija", "x": 517181.659, "y": 1969837.431},
+    {"nombre": "El Salmoncito", "x": 517084.743, "y": 1963131.811},
+    {"nombre": "El Salmon", "x": 517084.743, "y": 1962568.742},
+    {"nombre": "Santa Elena", "x": 518382.504, "y": 1957356.105},
+    {"nombre": "El Infiernon", "x": 521941.396, "y": 1953847.365},
+    {"nombre": "La Isla", "x": 523325.068, "y": 1952239.194},
+    {"nombre": "El Morgan", "x": 524265.663, "y": 1945609.637},
+    {"nombre": "El Infiernito", "x": 529602.392, "y": 1954204.481},
+    {"nombre": "El Jobal", "x": 536158.163, "y": 1966152.753},
+    {"nombre": "Los Cuyos", "x": 533886.902, "y": 1957284.17},
+    {"nombre": "El Recreo", "x": 537205.586, "y": 1965649.189},
+    {"nombre": "Los Cuyos II", "x": 539968.134, "y": 1962862.671},
+    {"nombre": "Los Perros", "x": 534691.126, "y": 1960808.64}
+]
+
 def convertir_a_gtm(lon, lat):
     """Convierte coordenadas de WGS84 (lat, lon) a GTM."""
     if not Transformer:
@@ -279,6 +306,20 @@ def generar_mapa_imagen(puntos, concesiones=None):
                         for p in poly_3857.geoms:
                             x, y = p.exterior.xy
                             ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
+                            
+        # Plotear Campamentos (Casitas)
+        if CAMPAMENTOS:
+            gtm_proj = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+            trans_gtm_to_3857 = Transformer.from_crs(gtm_proj, "EPSG:3857", always_xy=True)
+            
+            camp_xs, camp_ys = [], []
+            for camp in CAMPAMENTOS:
+                cx, cy = trans_gtm_to_3857.transform(camp['x'], camp['y'])
+                camp_xs.append(cx)
+                camp_ys.append(cy)
+                ax.text(cx, cy - 1500, camp['nombre'], fontsize=7, ha='center', va='top', color='black', fontweight='bold', bbox=dict(facecolor='white', alpha=0.6, edgecolor='none', pad=0.5), zorder=4)
+            
+            ax.scatter(camp_xs, camp_ys, c='#795548', s=90, marker='p', edgecolors='white', linewidth=1, zorder=4, label='Campamentos')
 
         if xs: ax.scatter(xs, ys, c=colores, s=50, edgecolors='white', zorder=2)
         

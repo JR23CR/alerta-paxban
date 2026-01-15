@@ -4,7 +4,7 @@ on:
     branches: ["main"]
   schedule:
     - cron: '0 * * * *'
-    - cron: '0 13 * * *' # Reporte diario 7:00 AM Guatemala (13:00 UTC)
+    - cron: '0 22 * * *' # Reporte diario 4:00 PM Guatemala (22:00 UTC)
   workflow_dispatch:
     inputs:
       action_type:
@@ -89,8 +89,8 @@ jobs:
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
             echo "REPORT_REASON=por solicitud manual" >> $GITHUB_ENV
-          elif [[ "${{ github.event.schedule }}" == "0 13 * * *" ]]; then
-            echo "Modo: Reporte Diario 7:00 AM (A todos)"
+          elif [[ "${{ github.event.schedule }}" == "0 22 * * *" ]]; then
+            echo "Modo: Reporte Diario 4:00 PM (A todos)"
             echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
