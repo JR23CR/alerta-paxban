@@ -14,6 +14,9 @@ on:
         type: choice
         options:
         - monitor
+        - test_incendio
+        - test_prealerta
+        - test_monitoreo
         - reporte_mensual
 
 permissions:
@@ -66,6 +69,20 @@ jobs:
             echo "ACTION_TYPE=reporte_mensual" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
             echo "REPORT_REASON=Generación de Reporte Mensual" >> $GITHUB_ENV
+          elif [[ "$ACTION_TYPE" == "test_incendio" ]]; then
+            echo "Modo: SIMULACRO DE INCENDIO"
+            echo "RECIPIENT_EMAIL=$EMAIL_MANUAL" >> $GITHUB_ENV
+            echo "ACTION_TYPE=test_incendio" >> $GITHUB_ENV
+          elif [[ "$ACTION_TYPE" == "test_prealerta" ]]; then
+            echo "Modo: SIMULACRO DE PRE-ALERTA"
+            echo "RECIPIENT_EMAIL=$EMAIL_MANUAL" >> $GITHUB_ENV
+            echo "ACTION_TYPE=test_prealerta" >> $GITHUB_ENV
+          elif [[ "$ACTION_TYPE" == "test_monitoreo" ]]; then
+            echo "Modo: SIMULACRO DE MONITOREO"
+            echo "RECIPIENT_EMAIL=$EMAIL_MANUAL" >> $GITHUB_ENV
+            echo "ACTION_TYPE=test_monitoreo" >> $GITHUB_ENV
+            echo "FORCE_REPORT=true" >> $GITHUB_ENV
+            echo "REPORT_REASON=por solicitud de prueba manual" >> $GITHUB_ENV
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Modo: Manual (Solo a Corado)"
             echo "RECIPIENT_EMAIL=$EMAIL_MANUAL" >> $GITHUB_ENV

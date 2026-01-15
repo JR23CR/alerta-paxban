@@ -390,70 +390,107 @@ def cargar_concesiones():
 def main():
     print("🚀 Iniciando sistema Paxbán...")
     concesiones = cargar_concesiones()
+    action_type = os.environ.get("ACTION_TYPE", "monitor")
     
-    # Descargar datos NASA
     puntos = []
     
-    # Configurar sesión con reintentos para mayor robustez
-    session = requests.Session()
-    retry_strategy = Retry(total=3, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])
-    adapter = HTTPAdapter(max_retries=retry_strategy)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
+    # --- LÓGICA DE PRUEBAS (SIMULACROS) ---
+    if action_type.startswith("test_"):
+        print(f"🧪 MODO PRUEBA ACTIVADO: {action_type}")
+        fecha_sim = datetime.utcnow().strftime("%Y-%m-%d %H%M")
+        
+        if action_type == "test_incendio":
+            # Punto DENTRO de Paxbán
+            puntos.append({
+                "lat": 17.7, "lon": -90.15, "color": "red", "alerta": True, "pre_alerta": False,
+                "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 1,
+                "concesion": "Paxbán", "gtm": convertir_a_gtm(-90.15, 17.7)
+            })
+        elif action_type == "test_prealerta":
+            # Punto CERCA de Paxbán (Zona de Amortiguamiento)
+            puntos.append({
+                "lat": 17.55, "lon": -90.2, "color": "orange", "alerta": False, "pre_alerta": True,
+                "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 12,
+                "concesion": "Zona de Amortiguamiento", "gtm": convertir_a_gtm(-90.2, 17.55)
+            })
+        elif action_type == "test_monitoreo":
+            # Sin puntos, solo fuerza el reporte verde
+            pass
+            
+    # --- LÓGICA NORMAL (DESCARGA NASA) ---
+    else:
+        # Configurar sesión con reintentos para mayor robustez
+        session = requests.Session()
+        retry_strategy = Retry(total=3, backoff_factor=2, status_forcelist=[429, 500, 502, 503, 504])
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
 
-    satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
-    for sat in satelites:
-        try:
-            print(f"⬇️ Descargando datos de {sat}...")
-            url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-94,13.5,-88,20/3"
-            res = session.get(url, timeout=60)
-            if res.status_code == 200:
-                lines = res.text.strip().split('\n')[1:]
-                for line in lines:
-                    try:
-                        d = line.split(',')
-                        lat, lon = float(d[0]), float(d[1])
-                        p = Point(lon, lat)
-                        
-                        # Verificar si está en Paxbán
-                        en_paxban = False
-                        for nom, poly in concesiones.items():
-                            if "Paxbán" in nom and poly.contains(p):
-                                en_paxban = True
-                                break
-                        
-                        # Calcular antigüedad
-                        dt = datetime.strptime(f"{d[5]} {d[6]}", "%Y-%m-%d %H%M")
-                        horas = (datetime.utcnow() - dt).total_seconds() / 3600
-                        color = "red" if horas <= 24 else "orange" if horas <= 48 else "yellow"
-                        
-                        puntos.append({
-                            "lat": lat, "lon": lon, "color": color, "alerta": en_paxban,
-                            "sat": sat, "fecha": f"{d[5]} {d[6]}", "horas": horas,
-                            "concesion": "Paxbán" if en_paxban else "Externa",
-                            "gtm": convertir_a_gtm(lon, lat)
-                        })
-                    except: pass
-        except Exception as e:
-            print(f"⚠️ Error descargando {sat}: {e}", file=sys.stderr)
+        satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
+        for sat in satelites:
+            try:
+                print(f"⬇️ Descargando datos de {sat}...")
+                url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-94,13.5,-88,20/3"
+                res = session.get(url, timeout=60)
+                if res.status_code == 200:
+                    lines = res.text.strip().split('\n')[1:]
+                    for line in lines:
+                        try:
+                            d = line.split(',')
+                            lat, lon = float(d[0]), float(d[1])
+                            p = Point(lon, lat)
+                            
+                            # Verificar ubicación
+                            en_paxban = False
+                            en_prealerta = False
+                            concesion_nombre = "Externa"
+                            
+                            for nom, poly in concesiones.items():
+                                if "Paxbán" in nom:
+                                    if poly.contains(p):
+                                        en_paxban = True
+                                        concesion_nombre = "Paxbán"
+                                        break
+                                    # Buffer aproximado de 10km (0.09 grados)
+                                    elif poly.distance(p) < 0.09:
+                                        en_prealerta = True
+                                        concesion_nombre = "Zona de Amortiguamiento"
+                            
+                            # Calcular antigüedad
+                            dt = datetime.strptime(f"{d[5]} {d[6]}", "%Y-%m-%d %H%M")
+                            horas = (datetime.utcnow() - dt).total_seconds() / 3600
+                            color = "red" if horas <= 24 else "orange" if horas <= 48 else "yellow"
+                            
+                            puntos.append({
+                                "lat": lat, "lon": lon, "color": color, "alerta": en_paxban, "pre_alerta": en_prealerta,
+                                "sat": sat, "fecha": f"{d[5]} {d[6]}", "horas": horas,
+                                "concesion": concesion_nombre,
+                                "gtm": convertir_a_gtm(lon, lat)
+                            })
+                        except: pass
+            except Exception as e:
+                print(f"⚠️ Error descargando {sat}: {e}", file=sys.stderr)
 
-    if not puntos:
-        print("⚠️ Advertencia: No se encontraron datos de incendios en el área seleccionada.")
+        if not puntos:
+            print("⚠️ Advertencia: No se encontraron datos de incendios en el área seleccionada.")
 
     # Guardar JSON para la web
     with open('incendios.json', 'w') as f: json.dump(puntos, f)
     
     alertas = [p for p in puntos if p['alerta']]
+    pre_alertas = [p for p in puntos if p.get('pre_alerta')]
     force_report = os.environ.get("FORCE_REPORT", "false") == "true"
     
     # Generar mapa si es necesario
     img_bytes = None
-    if alertas or force_report:
+    if alertas or pre_alertas or force_report:
         img_bytes = generar_mapa_imagen(puntos, concesiones)
         if force_report: guardar_mapa_local(img_bytes)
         if alertas: guardar_bitacora(img_bytes, "alertas", alertas)
 
-    # Enviar Alertas
+    # --- ENVIAR CORREOS SEGÚN PRIORIDAD ---
+    
+    # 1. ALERTA ROJA (Incendio DENTRO de Paxbán)
     if alertas:
         msg = f"🔥 <b>ALERTA PAXBÁN</b>\nSe detectaron {len(alertas)} incendios."
         enviar_alerta_telegram(msg, img_bytes)
@@ -513,6 +550,59 @@ def main():
         html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
         enviar_correo_alerta(html, asunto="🔥 ALERTA DE INCENDIO - Paxbán", imagen_mapa=img_bytes)
         
+    # 2. PRE-ALERTA AMARILLA (Incendio CERCA de Paxbán)
+    elif pre_alertas:
+        msg = f"⚠️ <b>PRE-ALERTA PAXBÁN</b>\nActividad en zona de amortiguamiento."
+        enviar_alerta_telegram(msg, img_bytes)
+        
+        html = f"""
+        <html>
+        <head>
+        <style>
+            @media print {{
+                @page {{ margin: 0.5cm; }}
+                body {{ font-family: Arial, sans-serif; font-size: 9pt; }}
+                h2 {{ color: #F57F17; margin-top: 0; font-size: 12pt; margin-bottom: 5px; }}
+                .alert-box {{ background-color: #FFF3E0 !important; border-left: 5px solid #F57F17 !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 5px 0 !important; }}
+                table {{ width: 100%; border-collapse: collapse; font-size: 8pt; margin-bottom: 5px !important; }}
+                th {{ background-color: #FFB74D !important; color: white !important; -webkit-print-color-adjust: exact; padding: 2px; }}
+                td {{ padding: 2px; border: 1px solid #ddd; }}
+                img {{ max-height: 300px !important; width: auto; display: block; margin: 5px auto; }}
+                .no-print {{ display: none; }}
+            }}
+        </style>
+        </head>
+        <body>
+        <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
+            <table style="width: 100%; border-bottom: 2px solid #F57F17; margin-bottom: 10px;">
+                <tr>
+                    <td style="width: 80px; padding-bottom: 5px;">
+                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 70px; height: auto;">
+                    </td>
+                    <td style="vertical-align: middle; padding-bottom: 5px;">
+                        <h2 style="color: #F57F17; margin: 0; font-size: 18pt;">⚠️ PRE-ALERTA DE INCENDIO</h2>
+                    </td>
+                </tr>
+            </table>
+            <p style="margin: 5px 0;">Estimado usuario,</p>
+            <p style="margin: 5px 0;">El sistema ha detectado <strong>{len(pre_alertas)} foco(s) de calor</strong> en la zona de amortiguamiento (10 km) de la concesión.</p>
+            <div class="alert-box" style="background-color: #FFF3E0; padding: 10px; border-left: 5px solid #F57F17; margin: 10px 0;">
+                <h3 style="margin: 0; color: #E65100; font-size: 14pt;">Zona de Vigilancia</h3>
+                <p style="margin: 5px 0 0 0;">Se recomienda monitorear la evolución de estos puntos.</p>
+            </div>
+            <h4 style="color: #333; margin: 10px 0 5px 0;">Detalles:</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                <tr style="background-color: #FFB74D; color: white; text-align: left;">
+                    <th style="padding: 5px;">#</th><th style="padding: 5px;">Coordenadas</th><th style="padding: 5px;">GTM</th><th style="padding: 5px;">Fecha/Hora</th>
+                </tr>"""
+        for i, p in enumerate(pre_alertas):
+            html += f"""<tr style="background-color: #ffffff; font-size: 11px;"><td style="padding: 4px; border: 1px solid #ddd;">{i+1}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['gtm']}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['fecha']}</td></tr>"""
+        html += "</table>"
+        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 350px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
+        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje de advertencia preventiva.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #F57F17; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
+        enviar_correo_alerta(html, asunto="⚠️ PRE-ALERTA DE INCENDIO - Paxbán", imagen_mapa=img_bytes)
+
+    # 3. REPORTE DIARIO VERDE (Sin amenazas o solo monitoreo)
     elif force_report:
         fecha_hora = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
         razon = os.environ.get("REPORT_REASON", "automáticamente")
