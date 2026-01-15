@@ -51,7 +51,7 @@ jobs:
       - name: Configurar Destinatarios y Modo
         run: |
           # Definir listas de correos
-          EMAILS_ALERTAS="forestal@gibor.com, regencia@gibor.com, coradojose952@gmail.com"
+          EMAILS_ALERTAS="coradojose952@gmail.com"
           EMAIL_MANUAL="coradojose952@gmail.com"
           
           # Capturar input manual
@@ -63,26 +63,31 @@ jobs:
             echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
             echo "ACTION_TYPE=reporte_mensual" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
+            echo "REPORT_REASON=Generación de Reporte Mensual" >> $GITHUB_ENV
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Modo: Manual (Solo a Corado)"
             echo "RECIPIENT_EMAIL=$EMAIL_MANUAL" >> $GITHUB_ENV
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
+            echo "REPORT_REASON=por solicitud manual" >> $GITHUB_ENV
           elif [[ "${{ github.event.schedule }}" == "0 13 * * *" ]]; then
             echo "Modo: Reporte Diario 7:00 AM (A todos)"
             echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
+            echo "REPORT_REASON=automáticamente (programado)" >> $GITHUB_ENV
           else
             echo "Modo: Monitoreo Automático (A todos, solo si hay fuego)"
             echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=false" >> $GITHUB_ENV
+            echo "REPORT_REASON=por detección de alerta" >> $GITHUB_ENV
           fi
 
       - name: Ejecutar Detector de Incendios
         env:
           ACTION_TYPE: ${{ env.ACTION_TYPE }}
+          REPORT_REASON: ${{ env.REPORT_REASON }}
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}

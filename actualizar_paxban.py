@@ -319,8 +319,24 @@ def generar_reporte_mensual():
         
         with open(ruta_final, "rb") as f: zip_bytes = f.read()
         
-        cuerpo = "<html><body><h2>📂 Reporte Mensual Listo</h2><p>Adjunto encontrará el reporte.</p></body></html>"
-        enviar_correo_alerta(cuerpo, asunto=f"Reporte Mensual {mes}/{anio}", archivo_zip=(f"{zip_filename}.zip", zip_bytes))
+        cuerpo = f"""
+        <h2 style="color: #1565C0; font-family: Arial, sans-serif;">📦 Reporte Mensual Generado: {nombre_mes} {anio}</h2>
+        <p style="font-family: Arial, sans-serif;">Estimado usuario,</p>
+        <p style="font-family: Arial, sans-serif;">Se ha completado la compilación del reporte mensual de monitoreo satelital.</p>
+
+        <div style="background-color: #e3f2fd; padding: 15px; border-left: 5px solid #1565C0; margin: 20px 0; font-family: Arial, sans-serif;">
+            <h3 style="margin: 0; color: #0d47a1;">Archivo Adjunto: {zip_filename}.zip</h3>
+            <p style="margin: 5px 0 0 0;">El archivo ZIP adjunto contiene las siguientes carpetas:</p>
+            <ul style="margin-top: 10px; padding-left: 20px;">
+                <li><strong>Reporte Diario:</strong> Todos los mapas de calor diarios del mes.</li>
+                <li><strong>Incendios Detectados:</strong> Evidencia de alertas de incendio (si las hubo).</li>
+                <li><strong>Informe de Puntos de Calor:</strong> Documento Word con el resumen.</li>
+            </ul>
+        </div>
+
+        <p style="font-family: Arial, sans-serif;">Puede descargar el archivo directamente desde este correo.</p>
+        <br><hr style="border: 0; border-top: 1px solid #eee;"><p style="font-size: 12px; color: #666; font-family: Arial, sans-serif;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado automáticamente.<br>Desarrollado por JR23CR</p><p style="text-align: center; font-family: Arial, sans-serif;"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #1565C0; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ir a la Galería de Reportes</a></p>"""
+        enviar_correo_alerta(cuerpo, asunto=f"Reporte Mensual {nombre_mes} {anio}", archivo_zip=(f"{zip_filename}.zip", zip_bytes))
         
     except Exception as e:
         print(f"❌ Error CRÍTICO en reporte mensual: {e}", file=sys.stderr)
@@ -405,17 +421,82 @@ def main():
     if alertas:
         msg = f"🔥 <b>ALERTA PAXBÁN</b>\nSe detectaron {len(alertas)} incendios."
         enviar_alerta_telegram(msg, img_bytes)
-        html = f"<h2>🔥 Alerta de Incendio</h2><p>Se detectaron {len(alertas)} focos.</p>"
-        if img_bytes: html += '<img src="cid:mapa_peten">'
-        enviar_correo_alerta(html, imagen_mapa=img_bytes)
+        
+        html = f"""
+        <h2 style="color: #D32F2F; font-family: Arial, sans-serif;">🔥 ALERTA DE INCENDIO DETECTADO 🔥</h2>
+        <p style="font-family: Arial, sans-serif;">Estimado usuario,</p>
+        <p style="font-family: Arial, sans-serif;"><strong>¡Atención!</strong> El sistema Alerta Paxbán ha identificado <strong>{len(alertas)} foco(s) de incendio activos</strong> dentro de los polígonos de las concesiones monitoreadas.</p>
+        <div style="background-color: #ffcdd2; padding: 15px; border-left: 5px solid #D32F2F; margin: 20px 0; font-family: Arial, sans-serif;">
+            <h3 style="margin: 0; color: #b71c1c;">Resumen de la Alerta</h3>
+            <p style="margin: 5px 0 0 0;">Se requiere verificación y acción inmediata.</p>
+        </div>
+        <h4 style="font-family: Arial, sans-serif; color: #333;">Detalles de los Focos Detectados:</h4>
+        <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 14px;">
+            <tr style="background-color: #ef5350; color: white; text-align: left;">
+                <th style="padding: 8px; border: 1px solid #ddd;">#</th><th style="padding: 8px; border: 1px solid #ddd;">Coordenadas</th><th style="padding: 8px; border: 1px solid #ddd;">GTM</th><th style="padding: 8px; border: 1px solid #ddd;">Fecha/Hora (UTC)</th><th style="padding: 8px; border: 1px solid #ddd;">Satélite</th>
+            </tr>"""
+        for i, p in enumerate(alertas):
+            html += f"""
+            <tr style="background-color: {'#ffebee' if i % 2 == 0 else '#ffffff'};">
+                <td style="padding: 8px; border: 1px solid #ddd;">{i+1}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{p['gtm']}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{p['fecha']}</td>
+                <td style="padding: 8px; border: 1px solid #ddd;">{p['sat']}</td>
+            </tr>"""
+        html += "</table>"
+        html += '<p style="font-family: Arial, sans-serif; margin-top: 20px;">A continuación se presenta el mapa de la situación:</p>'
+        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;"><br>'
+        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee;"><p style="font-size: 12px; color: #666; font-family: Arial, sans-serif;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center; font-family: Arial, sans-serif;"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ver Galería de Reportes</a></p>"""
+        enviar_correo_alerta(html, asunto="🔥 ALERTA DE INCENDIO - Paxbán", imagen_mapa=img_bytes)
         
     elif force_report:
-        msg = f"✅ <b>Reporte Diario</b>\nSin amenazas activas.\nPuntos analizados: {len(puntos)}"
+        fecha_hora = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
+        razon = os.environ.get("REPORT_REASON", "automáticamente")
+        
+        # Mensaje Telegram
+        msg = f"🛰️ <b>Reporte de Monitoreo Satelital</b>\n\n" \
+              f"✅ <b>Estado: Sin Amenazas Detectadas</b>\n" \
+              f"No se han identificado focos activos dentro de las concesiones.\n\n" \
+              f"📍 Puntos analizados: {len(puntos)}\n" \
+              f"🕒 Hora: {fecha_hora}\n\n" \
+              f"Sistema de Alerta Paxbán"
         enviar_alerta_telegram(msg, img_bytes)
-        html = f"<h2>✅ Reporte Diario</h2><p>Sin amenazas activas.</p>"
-        if img_bytes: html += '<img src="cid:mapa_peten">'
-        html += '<br><a href="https://JR23CR.github.io/alerta-paxban/reportes.html">📂 Ver Galería</a>'
-        enviar_correo_alerta(html, asunto="Reporte Diario", imagen_mapa=img_bytes)
+        
+        # HTML Correo (Tu diseño)
+        html = f"""
+        <h2 style="color: #2E7D32; font-family: Arial, sans-serif;">Reporte de Monitoreo Satelital</h2>
+        <p style="font-family: Arial, sans-serif;">Estimado usuario,</p>
+        <p style="font-family: Arial, sans-serif;">El sistema Alerta Paxbán ha completado el análisis de los datos satelitales más recientes.</p>
+        
+        <div style="background-color: #e8f5e9; padding: 15px; border-left: 5px solid #2e7d32; margin: 20px 0; font-family: Arial, sans-serif;">
+            <h3 style="margin: 0; color: #1b5e20;">✅ Estado: Sin Amenazas Detectadas</h3>
+            <p style="margin: 5px 0 0 0;">No se han identificado focos de incendio activos dentro de los polígonos de las concesiones forestales monitoreadas.</p>
+        </div>
+
+        <p style="font-family: Arial, sans-serif;">
+            <b>Puntos analizados en la región:</b> {len(puntos)}<br>
+            <b>Hora del reporte:</b> {fecha_hora}
+        </p>
+
+        <p style="font-family: Arial, sans-serif;">A continuación, se presenta el Mapa de Situación Actual en Petén, mostrando la actividad térmica general en la región. Los colores indican la antigüedad del punto de calor (Rojo: &lt;24h, Naranja: &lt;48h, Amarillo: &lt;72h).</p>
+        """
+        
+        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;"><br>'
+        
+        html += f"""
+        <br>
+        <hr style="border: 0; border-top: 1px solid #eee;">
+        <p style="font-size: 12px; color: #666; font-family: Arial, sans-serif;">
+            <b>Sistema de Alerta Temprana Paxbán</b><br>
+            Mensaje generado {razon}.<br>
+            Desarrollado por JR23CR
+        </p>
+        <p style="text-align: center; font-family: Arial, sans-serif;">
+            <a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #2E7D32; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ver Galería de Reportes</a>
+        </p>
+        """
+        enviar_correo_alerta(html, asunto="Reporte de Monitoreo Satelital", imagen_mapa=img_bytes)
 
     # Reporte Mensual si se solicita
     if os.environ.get("ACTION_TYPE") == "reporte_mensual":
