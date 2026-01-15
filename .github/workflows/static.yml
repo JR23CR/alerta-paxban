@@ -98,7 +98,11 @@ jobs:
           git config --global user.email "bot@paxban.com"
           # Sincronizar antes de agregar para evitar error 128
           git pull --rebase origin main || echo "Nada que actualizar"
-          git add 2.4/ bitacora/ descargas/ reportes.html
+          # Agregar archivos generados si existen
+          [ -d "2.4" ] && git add 2.4/
+          [ -d "bitacora" ] && git add bitacora/
+          [ -d "descargas" ] && git add descargas/
+          [ -f "reportes.html" ] && git add reportes.html
           # Solo hacer commit si hay cambios para evitar errores
           if git diff --staged --quiet; then
             echo "No hay cambios en los mapas."
