@@ -4,6 +4,7 @@ import json
 import smtplib
 import shutil
 import traceback
+import math
 from datetime import datetime, timedelta
 from io import BytesIO
 from email.mime.multipart import MIMEMultipart
@@ -15,7 +16,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from shapely.geometry import shape, Point
-from shapely.ops import transform
+from shapely.ops import transform, nearest_points
 
 # Configurar matplotlib para que funcione sin pantalla (servidor)
 import matplotlib
@@ -411,7 +412,8 @@ def main():
             puntos.append({
                 "lat": 17.55, "lon": -90.2, "color": "orange", "alerta": False, "pre_alerta": True,
                 "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 12,
-                "concesion": "Zona de Amortiguamiento", "gtm": convertir_a_gtm(-90.2, 17.55)
+                "concesion": "Zona de Amortiguamiento", "gtm": convertir_a_gtm(-90.2, 17.55),
+                "dist_info": "500 metros del límite Oeste"
             })
         elif action_type == "test_monitoreo":
             # Sin puntos, solo fuerza el reporte verde
@@ -444,6 +446,7 @@ def main():
                             en_paxban = False
                             en_prealerta = False
                             concesion_nombre = "Externa"
+                            dist_info = None
                             
                             for nom, poly in concesiones.items():
                                 if "Paxbán" in nom:
@@ -455,6 +458,30 @@ def main():
                                     elif poly.distance(p) < 0.09:
                                         en_prealerta = True
                                         concesion_nombre = "Zona de Amortiguamiento"
+                                        
+                                        # Calcular distancia y dirección exacta en metros
+                                        if Transformer:
+                                            try:
+                                                proj_gtm_str = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+                                                trans_to_meter = Transformer.from_crs("EPSG:4326", proj_gtm_str, always_xy=True)
+                                                
+                                                p_meter = transform(trans_to_meter.transform, p)
+                                                poly_meter = transform(trans_to_meter.transform, poly)
+                                                
+                                                dist_meters = poly_meter.distance(p_meter)
+                                                p_near = nearest_points(poly_meter, p_meter)[0]
+                                                
+                                                dx = p_meter.x - p_near.x
+                                                dy = p_meter.y - p_near.y
+                                                angle = math.degrees(math.atan2(dy, dx))
+                                                
+                                                if -45 <= angle <= 45: direction = "Este"
+                                                elif 45 < angle <= 135: direction = "Norte"
+                                                elif -135 <= angle < -45: direction = "Sur"
+                                                else: direction = "Oeste"
+                                                
+                                                dist_info = f"{int(dist_meters)} metros del límite {direction}"
+                                            except: pass
                             
                             # Calcular antigüedad
                             dt = datetime.strptime(f"{d[5]} {d[6]}", "%Y-%m-%d %H%M")
@@ -465,7 +492,8 @@ def main():
                                 "lat": lat, "lon": lon, "color": color, "alerta": en_paxban, "pre_alerta": en_prealerta,
                                 "sat": sat, "fecha": f"{d[5]} {d[6]}", "horas": horas,
                                 "concesion": concesion_nombre,
-                                "gtm": convertir_a_gtm(lon, lat)
+                                "gtm": convertir_a_gtm(lon, lat),
+                                "dist_info": dist_info
                             })
                         except: pass
             except Exception as e:
@@ -492,7 +520,13 @@ def main():
     
     # 1. ALERTA ROJA (Incendio DENTRO de Paxbán)
     if alertas:
-        msg = f"🔥 <b>ALERTA PAXBÁN</b>\nSe detectaron {len(alertas)} incendios."
+        msg = f"🔥 <b>ALERTA PAXBÁN</b>\n"
+        msg += f"<b>Se detectaron {len(alertas)} incendios activos.</b>\n"
+        for i, p in enumerate(alertas):
+            msg += f"\n🔴 <b>Foco {i+1}:</b>"
+            msg += f"\n📍 {p['lat']:.5f}, {p['lon']:.5f}"
+            msg += f"\n🗺️ GTM: {p['gtm']}"
+            msg += f"\n🛰️ {p['sat']} - {p['fecha']}"
         enviar_alerta_telegram(msg, img_bytes)
         
         html = f"""
@@ -552,7 +586,16 @@ def main():
         
     # 2. PRE-ALERTA AMARILLA (Incendio CERCA de Paxbán)
     elif pre_alertas:
-        msg = f"⚠️ <b>PRE-ALERTA PAXBÁN</b>\nActividad en zona de amortiguamiento."
+        print(f"📧 Enviando Pre-Alerta por {len(pre_alertas)} focos...")
+        msg = f"⚠️ <b>PRE-ALERTA PAXBÁN</b>\n"
+        msg += f"<b>Actividad en zona de amortiguamiento ({len(pre_alertas)} focos).</b>\n"
+        for i, p in enumerate(pre_alertas):
+            msg += f"\n🟠 <b>Foco {i+1}:</b>"
+            if p.get('dist_info'):
+                msg += f"\n📏 {p['dist_info']}"
+            msg += f"\n📍 {p['lat']:.5f}, {p['lon']:.5f}"
+            msg += f"\n🗺️ GTM: {p['gtm']}"
+            msg += f"\n🛰️ {p['sat']} - {p['fecha']}"
         enviar_alerta_telegram(msg, img_bytes)
         
         html = f"""
@@ -593,10 +636,11 @@ def main():
             <h4 style="color: #333; margin: 10px 0 5px 0;">Detalles:</h4>
             <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                 <tr style="background-color: #FFB74D; color: white; text-align: left;">
-                    <th style="padding: 5px;">#</th><th style="padding: 5px;">Coordenadas</th><th style="padding: 5px;">GTM</th><th style="padding: 5px;">Fecha/Hora</th>
+                    <th style="padding: 5px;">#</th><th style="padding: 5px;">Ubicación</th><th style="padding: 5px;">Coordenadas</th><th style="padding: 5px;">GTM</th><th style="padding: 5px;">Fecha/Hora</th>
                 </tr>"""
         for i, p in enumerate(pre_alertas):
-            html += f"""<tr style="background-color: #ffffff; font-size: 11px;"><td style="padding: 4px; border: 1px solid #ddd;">{i+1}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['gtm']}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['fecha']}</td></tr>"""
+            dist_txt = p.get('dist_info', 'Zona de Amortiguamiento')
+            html += f"""<tr style="background-color: #ffffff; font-size: 11px;"><td style="padding: 4px; border: 1px solid #ddd;">{i+1}</td><td style="padding: 4px; border: 1px solid #ddd;">{dist_txt}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['gtm']}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['fecha']}</td></tr>"""
         html += "</table>"
         if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 350px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
         html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje de advertencia preventiva.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #F57F17; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
