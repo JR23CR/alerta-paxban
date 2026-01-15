@@ -4,7 +4,7 @@ import json
 import smtplib
 import shutil
 import traceback
-giimport math
+import math
 from datetime import datetime, timedelta
 from io import BytesIO
 from email.mime.multipart import MIMEMultipart
@@ -62,6 +62,33 @@ def convertir_a_gtm(lon, lat):
         return f"{gtm_x:.2f} E, {gtm_y:.2f} N"
     except Exception as e:
         return "Error Calc"
+
+def calcular_distancia_direccion(p, poly):
+    """Calcula distancia y dirección desde un punto al polígono."""
+    if not Transformer: return None
+    try:
+        # Proyección GTM para metros (EPSG:4326 -> GTM)
+        proj_gtm_str = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+        trans_to_meter = Transformer.from_crs("EPSG:4326", proj_gtm_str, always_xy=True)
+        
+        p_meter = transform(trans_to_meter.transform, p)
+        poly_meter = transform(trans_to_meter.transform, poly)
+        
+        dist_meters = poly_meter.distance(p_meter)
+        p_near = nearest_points(poly_meter, p_meter)[0]
+        
+        dx = p_meter.x - p_near.x
+        dy = p_meter.y - p_near.y
+        angle = math.degrees(math.atan2(dy, dx))
+        
+        if -45 <= angle <= 45: direction = "Este"
+        elif 45 < angle <= 135: direction = "Norte"
+        elif -135 <= angle < -45: direction = "Sur"
+        else: direction = "Oeste"
+        
+        return f"{int(dist_meters)} metros del límite {direction}"
+    except Exception:
+        return None
 
 def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Paxbán", imagen_mapa=None, archivo_zip=None):
     """Envía un correo electrónico de alerta."""
@@ -409,11 +436,22 @@ def main():
             })
         elif action_type == "test_prealerta":
             # Punto CERCA de Paxbán (Zona de Amortiguamiento)
+            lat, lon = 17.55, -90.2
+            p_test = Point(lon, lat)
+            dist_info_test = "Zona de Amortiguamiento"
+            
+            # Calcular dinámicamente usando el polígono real
+            for nom, poly in concesiones.items():
+                if "Paxbán" in nom:
+                    res = calcular_distancia_direccion(p_test, poly)
+                    if res: dist_info_test = res
+                    break
+            
             puntos.append({
-                "lat": 17.55, "lon": -90.2, "color": "orange", "alerta": False, "pre_alerta": True,
+                "lat": lat, "lon": lon, "color": "orange", "alerta": False, "pre_alerta": True,
                 "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 12,
-                "concesion": "Zona de Amortiguamiento", "gtm": convertir_a_gtm(-90.2, 17.55),
-                "dist_info": "500 metros del límite Oeste"
+                "concesion": "Zona de Amortiguamiento", "gtm": convertir_a_gtm(lon, lat),
+                "dist_info": dist_info_test
             })
         elif action_type == "test_monitoreo":
             # Sin puntos, solo fuerza el reporte verde
