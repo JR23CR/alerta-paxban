@@ -41,6 +41,12 @@ except ImportError:
 
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
+MESES_ES = {
+    "01": "Enero", "02": "Febrero", "03": "Marzo", "04": "Abril",
+    "05": "Mayo", "06": "Junio", "07": "Julio", "08": "Agosto",
+    "09": "Septiembre", "10": "Octubre", "11": "Noviembre", "12": "Diciembre"
+}
+
 def convertir_a_gtm(lon, lat):
     """Convierte coordenadas de WGS84 (lat, lon) a GTM."""
     if not Transformer:
@@ -167,7 +173,42 @@ def generar_galeria_html():
         
         mapas.sort(key=lambda x: x['fecha'], reverse=True)
         
-        html = """<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reportes Paxbán</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><div class="container py-5"><div class="d-flex justify-content-between align-items-center mb-4"><h1 class="text-success m-0">📂 Galería de Reportes</h1><a href="./" class="btn btn-outline-success">🏠 Inicio</a></div><div class="row row-cols-1 row-cols-md-3 g-4">"""
+        # Buscar reportes mensuales (ZIPs)
+        reportes_mensuales = []
+        if os.path.exists("descargas"):
+            for root, _, files in os.walk("descargas"):
+                for file in files:
+                    if file.endswith(".zip"):
+                        url = os.path.join(root, file).replace(os.sep, '/')
+                        
+                        # Intentar crear un nombre bonito para la tarjeta (Ej: "Enero 2026")
+                        nombre_mostrar = file
+                        try:
+                            # Formato esperado: Reporte_Mensual_01_2026.zip
+                            parts = file.replace(".zip", "").split("_")
+                            if len(parts) >= 4:
+                                mes_num = parts[2]
+                                anio = parts[3]
+                                mes_nom = MESES_ES.get(mes_num, mes_num)
+                                nombre_mostrar = f"{mes_nom} {anio}"
+                        except: pass
+                        
+                        reportes_mensuales.append({"url": url, "nombre": nombre_mostrar, "filename": file})
+        
+        # Ordenar por nombre de archivo original para mantener orden cronológico
+        reportes_mensuales.sort(key=lambda x: x['filename'], reverse=True)
+
+        html = """<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reportes Paxbán</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><div class="container py-5"><div class="d-flex justify-content-between align-items-center mb-4"><h1 class="text-success m-0">📂 Galería de Reportes</h1><a href="./" class="btn btn-outline-success">🏠 Inicio</a></div>"""
+        
+        # Sección Reportes Mensuales
+        if reportes_mensuales:
+            html += """<h3 class="text-secondary mt-4 border-bottom pb-2">📦 Reportes Mensuales (Descarga Completa)</h3><div class="row row-cols-1 row-cols-md-3 g-4 mb-5">"""
+            for r in reportes_mensuales:
+                html += f"""<div class="col"><div class="card h-100 shadow-sm border-success"><div class="card-body text-center"><h5 class="card-title text-success">📅 {r['nombre']}</h5><p class="card-text small text-muted">Incluye: Reportes diarios, Incendios y Word.</p><a href="{r['url']}" class="btn btn-success w-100" download>⬇️ Descargar ZIP</a></div></div></div>"""
+            html += "</div>"
+
+        # Sección Mapas Diarios
+        html += """<h3 class="text-secondary mt-4 border-bottom pb-2">🗺️ Mapas Diarios</h3><div class="row row-cols-1 row-cols-md-3 g-4">"""
         for m in mapas:
             html += f"""<div class="col"><div class="card h-100 shadow-sm"><img src="{m['url']}" class="card-img-top" style="height:250px;object-fit:cover;"><div class="card-body"><h5 class="card-title">{m['fecha']}</h5><a href="{m['url']}" class="btn btn-primary btn-sm" download target="_blank">⬇️ Descargar</a></div></div></div>"""
         html += "</div></div></body></html>"
@@ -234,7 +275,7 @@ def generar_reporte_mensual():
     try:
         fecha_dt = datetime.utcnow() - timedelta(hours=6)
         anio, mes = fecha_dt.strftime("%Y"), fecha_dt.strftime("%m")
-        nombre_mes = datetime.now().strftime("%B") # Simple
+        nombre_mes = MESES_ES.get(mes, mes)
         
         raiz = f"Reporte_{mes}_{anio}"
         if os.path.exists(raiz): shutil.rmtree(raiz)
@@ -265,9 +306,10 @@ def generar_reporte_mensual():
         zip_filename = f"Reporte_Mensual_{mes}_{anio}"
         shutil.make_archive(zip_filename, 'zip', root_dir='.', base_dir=raiz)
         
-        # Mover a descargas
-        os.makedirs("descargas", exist_ok=True)
-        ruta_final = os.path.join("descargas", f"{zip_filename}.zip")
+        # Mover a descargas organizado por Año/Mes (Nombre)
+        carpeta_destino = os.path.join("descargas", anio, nombre_mes)
+        os.makedirs(carpeta_destino, exist_ok=True)
+        ruta_final = os.path.join(carpeta_destino, f"{zip_filename}.zip")
         if os.path.exists(ruta_final): os.remove(ruta_final) # Evitar error si existe
         shutil.move(f"{zip_filename}.zip", ruta_final)
         shutil.rmtree(raiz)
