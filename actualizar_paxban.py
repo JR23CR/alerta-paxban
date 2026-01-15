@@ -477,40 +477,40 @@ def main():
         </head>
         <body>
         <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
-            <table style="width: 100%; border-bottom: 2px solid #D32F2F; margin-bottom: 15px;">
+            <table style="width: 100%; border-bottom: 2px solid #D32F2F; margin-bottom: 10px;">
                 <tr>
-                    <td style="width: 100px; padding-bottom: 10px;">
-                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 90px; height: auto;">
+                    <td style="width: 80px; padding-bottom: 5px;">
+                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 70px; height: auto;">
                     </td>
-                    <td style="vertical-align: middle; padding-bottom: 10px;">
-                        <h2 style="color: #D32F2F; margin: 0;">🔥 ALERTA DE INCENDIO DETECTADO 🔥</h2>
+                    <td style="vertical-align: middle; padding-bottom: 5px;">
+                        <h2 style="color: #D32F2F; margin: 0; font-size: 18pt;">🔥 ALERTA DE INCENDIO DETECTADO 🔥</h2>
                     </td>
                 </tr>
             </table>
-            <p>Estimado usuario,</p>
-            <p><strong>¡Atención!</strong> El sistema Alerta Paxbán ha identificado <strong>{len(alertas)} foco(s) de incendio activos</strong> dentro de los polígonos de las concesiones monitoreadas.</p>
-            <div class="alert-box" style="background-color: #ffcdd2; padding: 15px; border-left: 5px solid #D32F2F; margin: 20px 0;">
-                <h3 style="margin: 0; color: #b71c1c;">Resumen de la Alerta</h3>
+            <p style="margin: 5px 0;">Estimado usuario,</p>
+            <p style="margin: 5px 0;"><strong>¡Atención!</strong> El sistema Alerta Paxbán ha identificado <strong>{len(alertas)} foco(s) de incendio activos</strong> dentro de los polígonos de las concesiones monitoreadas.</p>
+            <div class="alert-box" style="background-color: #ffcdd2; padding: 10px; border-left: 5px solid #D32F2F; margin: 10px 0;">
+                <h3 style="margin: 0; color: #b71c1c; font-size: 14pt;">Resumen de la Alerta</h3>
                 <p style="margin: 5px 0 0 0;">Se requiere verificación y acción inmediata.</p>
             </div>
-            <h4 style="color: #333;">Detalles de los Focos Detectados:</h4>
-            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <h4 style="color: #333; margin: 10px 0 5px 0;">Detalles de los Focos Detectados:</h4>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                 <tr style="background-color: #ef5350; color: white; text-align: left;">
-                    <th style="padding: 8px; border: 1px solid #ddd;">#</th><th style="padding: 8px; border: 1px solid #ddd;">Coordenadas</th><th style="padding: 8px; border: 1px solid #ddd;">GTM</th><th style="padding: 8px; border: 1px solid #ddd;">Fecha/Hora (UTC)</th><th style="padding: 8px; border: 1px solid #ddd;">Satélite</th>
+                    <th style="padding: 5px; border: 1px solid #ddd;">#</th><th style="padding: 5px; border: 1px solid #ddd;">Coordenadas</th><th style="padding: 5px; border: 1px solid #ddd;">GTM</th><th style="padding: 5px; border: 1px solid #ddd;">Fecha/Hora (UTC)</th><th style="padding: 5px; border: 1px solid #ddd;">Satélite</th>
                 </tr>"""
         for i, p in enumerate(alertas):
             html += f"""
-            <tr style="background-color: {'#ffebee' if i % 2 == 0 else '#ffffff'};">
-                <td style="padding: 8px; border: 1px solid #ddd;">{i+1}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{p['gtm']}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{p['fecha']}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{p['sat']}</td>
+            <tr style="background-color: {'#ffebee' if i % 2 == 0 else '#ffffff'}; font-size: 11px;">
+                <td style="padding: 4px; border: 1px solid #ddd;">{i+1}</td>
+                <td style="padding: 4px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td>
+                <td style="padding: 4px; border: 1px solid #ddd;">{p['gtm']}</td>
+                <td style="padding: 4px; border: 1px solid #ddd;">{p['fecha']}</td>
+                <td style="padding: 4px; border: 1px solid #ddd;">{p['sat']}</td>
             </tr>"""
         html += "</table>"
-        html += '<p style="margin-top: 20px;">A continuación se presenta el mapa de la situación:</p>'
-        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 400px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
-        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee;"><div style="font-size: 12px; color: #666;"><p><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
+        html += '<p style="margin: 10px 0 5px 0;">A continuación se presenta el mapa de la situación:</p>'
+        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 350px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
+        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
         enviar_correo_alerta(html, asunto="🔥 ALERTA DE INCENDIO - Paxbán", imagen_mapa=img_bytes)
         
     elif force_report:
@@ -546,45 +546,45 @@ def main():
         </head>
         <body>
         <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto;">
-            <table style="width: 100%; border-bottom: 2px solid #2E7D32; margin-bottom: 15px;">
+            <table style="width: 100%; border-bottom: 2px solid #2E7D32; margin-bottom: 10px;">
                 <tr>
-                    <td style="width: 100px; padding-bottom: 10px;">
-                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 90px; height: auto;">
+                    <td style="width: 80px; padding-bottom: 5px;">
+                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 70px; height: auto;">
                     </td>
-                    <td style="vertical-align: middle; padding-bottom: 10px;">
-                         <h2 style="color: #2E7D32; margin: 0;">Reporte de Monitoreo Satelital</h2>
+                    <td style="vertical-align: middle; padding-bottom: 5px;">
+                         <h2 style="color: #2E7D32; margin: 0; font-size: 18pt;">Reporte de Monitoreo Satelital</h2>
                     </td>
                 </tr>
             </table>
-            <p>Estimado usuario,</p>
-            <p>El sistema Alerta Paxbán ha completado el análisis de los datos satelitales más recientes.</p>
+            <p style="margin: 5px 0;">Estimado usuario,</p>
+            <p style="margin: 5px 0;">El sistema Alerta Paxbán ha completado el análisis de los datos satelitales más recientes.</p>
             
-            <div class="status-box" style="background-color: #e8f5e9; padding: 15px; border-left: 5px solid #2e7d32; margin: 20px 0;">
-                <h3 style="margin: 0; color: #1b5e20;">✅ Estado: Sin Amenazas Detectadas</h3>
+            <div class="status-box" style="background-color: #e8f5e9; padding: 10px; border-left: 5px solid #2e7d32; margin: 15px 0;">
+                <h3 style="margin: 0; color: #1b5e20; font-size: 14pt;">✅ Estado: Sin Amenazas Detectadas</h3>
                 <p style="margin: 5px 0 0 0;">No se han identificado focos de incendio activos dentro de los polígonos de las concesiones forestales monitoreadas.</p>
             </div>
 
-            <p>
+            <p style="margin: 5px 0;">
                 <b>Puntos analizados en la región:</b> {len(puntos)}<br>
                 <b>Hora del reporte:</b> {fecha_hora}
             </p>
 
-            <p>A continuación, se presenta el Mapa de Situación Actual en Petén, mostrando la actividad térmica general en la región. Los colores indican la antigüedad del punto de calor (Rojo: &lt;24h, Naranja: &lt;48h, Amarillo: &lt;72h).</p>
+            <p style="margin: 5px 0;">A continuación, se presenta el Mapa de Situación Actual en Petén, mostrando la actividad térmica general en la región. Los colores indican la antigüedad del punto de calor (Rojo: &lt;24h, Naranja: &lt;48h, Amarillo: &lt;72h).</p>
         """
         
-        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 500px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
+        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 350px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
         
         html += f"""
             <br>
-            <hr style="border: 0; border-top: 1px solid #eee;">
-            <div style="font-size: 12px; color: #666;">
-                <p>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
+            <div style="font-size: 11px; color: #666;">
+                <p style="margin: 2px 0;">
                     <b>Sistema de Alerta Temprana Paxbán</b><br>
                     Mensaje generado {razon}.<br>
                     Desarrollado por JR23CR
                 </p>
-                <p style="text-align: center;" class="no-print">
-                    <a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #2E7D32; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ver Galería de Reportes</a>
+                <p style="text-align: center; margin-top: 10px;" class="no-print">
+                    <a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #2E7D32; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a>
                 </p>
             </div>
         </div>
