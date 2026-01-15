@@ -195,6 +195,7 @@ def generar_galeria_html():
                         
                         reportes_mensuales.append({"url": url, "nombre": nombre_mostrar, "filename": file})
         
+        print(f"📦 Se encontraron {len(reportes_mensuales)} reportes mensuales.")
         # Ordenar por nombre de archivo original para mantener orden cronológico
         reportes_mensuales.sort(key=lambda x: x['filename'], reverse=True)
 
@@ -416,12 +417,12 @@ def main():
         html += '<br><a href="https://JR23CR.github.io/alerta-paxban/reportes.html">📂 Ver Galería</a>'
         enviar_correo_alerta(html, asunto="Reporte Diario", imagen_mapa=img_bytes)
 
-    # Generar Galería SIEMPRE
-    generar_galeria_html()
-
     # Reporte Mensual si se solicita
     if os.environ.get("ACTION_TYPE") == "reporte_mensual":
         generar_reporte_mensual()
+
+    # Generar Galería SIEMPRE (Al final para incluir el reporte mensual si se generó)
+    generar_galeria_html()
 
 if __name__ == "__main__":
     try:
