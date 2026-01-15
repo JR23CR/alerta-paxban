@@ -331,8 +331,10 @@ def generar_reporte_mensual():
         cuerpo = f"""
         <html><head><style>
             @media print {{
-                @page {{ margin: 1cm; }} body {{ font-family: Arial, sans-serif; font-size: 11pt; }} h2 {{ color: #1565C0; margin-top: 0; }}
-                .info-box {{ background-color: #e3f2fd !important; border-left: 5px solid #1565C0 !important; -webkit-print-color-adjust: exact; }}
+                @page {{ margin: 0.5cm; }} 
+                body {{ font-family: Arial, sans-serif; font-size: 10pt; }} 
+                h2 {{ color: #1565C0; margin-top: 0; font-size: 14pt; }}
+                .info-box {{ background-color: #e3f2fd !important; border-left: 5px solid #1565C0 !important; -webkit-print-color-adjust: exact; padding: 10px !important; margin: 10px 0 !important; }}
                 .no-print {{ display: none; }}
             }}
         </style></head><body>
@@ -459,13 +461,14 @@ def main():
         <head>
         <style>
             @media print {{
-                @page {{ margin: 1cm; }}
-                body {{ font-family: Arial, sans-serif; font-size: 11pt; }}
-                h2 {{ color: #D32F2F; margin-top: 0; }}
-                .alert-box {{ background-color: #ffcdd2 !important; border-left: 5px solid #D32F2F !important; -webkit-print-color-adjust: exact; }}
-                table {{ width: 100%; border-collapse: collapse; font-size: 10pt; }}
-                th {{ background-color: #ef5350 !important; color: white !important; -webkit-print-color-adjust: exact; }}
-                img {{ max-height: 400px; width: auto; display: block; margin: 10px auto; }}
+                @page {{ margin: 0.5cm; }}
+                body {{ font-family: Arial, sans-serif; font-size: 10pt; }}
+                h2 {{ color: #D32F2F; margin-top: 0; font-size: 14pt; }}
+                .alert-box {{ background-color: #ffcdd2 !important; border-left: 5px solid #D32F2F !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 10px 0 !important; }}
+                table {{ width: 100%; border-collapse: collapse; font-size: 9pt; }}
+                th {{ background-color: #ef5350 !important; color: white !important; -webkit-print-color-adjust: exact; padding: 4px; }}
+                td {{ padding: 4px; border: 1px solid #ddd; }}
+                img {{ max-height: 350px !important; width: auto; display: block; margin: 5px auto; }}
                 .no-print {{ display: none; }}
             }}
         </style>
@@ -504,7 +507,7 @@ def main():
             </tr>"""
         html += "</table>"
         html += '<p style="margin-top: 20px;">A continuación se presenta el mapa de la situación:</p>'
-        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 450px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
+        if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 400px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
         html += f"""<br><hr style="border: 0; border-top: 1px solid #eee;"><div style="font-size: 12px; color: #666;"><p><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
         enviar_correo_alerta(html, asunto="🔥 ALERTA DE INCENDIO - Paxbán", imagen_mapa=img_bytes)
         
@@ -527,11 +530,12 @@ def main():
         <head>
         <style>
             @media print {{
-                @page {{ margin: 1cm; }}
-                body {{ font-family: Arial, sans-serif; font-size: 11pt; }}
-                h2 {{ color: #2E7D32; margin-top: 0; }}
-                .status-box {{ background-color: #e8f5e9 !important; border-left: 5px solid #2e7d32 !important; -webkit-print-color-adjust: exact; }}
-                img {{ max-height: 450px; width: auto; display: block; margin: 10px auto; }}
+                @page {{ margin: 0.5cm; }}
+                body {{ font-family: Arial, sans-serif; font-size: 10pt; }}
+                h2 {{ color: #2E7D32; margin-top: 0; font-size: 14pt; }}
+                .status-box {{ background-color: #e8f5e9 !important; border-left: 5px solid #2e7d32 !important; -webkit-print-color-adjust: exact; padding: 5px !important; margin: 10px 0 !important; }}
+                img {{ max-height: 400px !important; width: auto; display: block; margin: 5px auto; }}
+                p {{ margin: 5px 0; }}
                 .no-print {{ display: none; }}
             }}
         </style>

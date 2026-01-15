@@ -35,6 +35,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necesario para evitar errores de historia al hacer rebase
 
       - name: Configurar Python
         uses: actions/setup-python@v4
@@ -101,19 +103,22 @@ jobs:
         run: |
           git config --global user.name "Paxban Bot"
           git config --global user.email "bot@paxban.com"
-          # Sincronizar antes de agregar para evitar error 128
-          git pull --rebase origin main || echo "Nada que actualizar"
+          
           # Agregar archivos generados si existen
           [ -d "2.4" ] && git add 2.4/
           [ -d "bitacora" ] && git add bitacora/
           [ -d "descargas" ] && git add descargas/
           [ -f "reportes.html" ] && git add reportes.html
+          [ -f "incendios.json" ] && git add incendios.json
+          
           # Solo hacer commit si hay cambios para evitar errores
           if git diff --staged --quiet; then
             echo "No hay cambios en los mapas."
           else
             git commit -m "🗺️ Reporte Diario: Mapa y Galería Web [skip ci]"
-            git push
+            # Sincronizar con el remoto y enviar
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
 
       - name: Setup Pages
