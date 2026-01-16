@@ -75,6 +75,9 @@ CAMPAMENTOS = [
     {"nombre": "Los Perros", "x": 534691.126, "y": 1960808.64}
 ]
 
+# Configuración oficial GTM (Guatemala Transversal Mercator)
+GTM_PROJ_STR = "+proj=tmerc +lat_0=0 +lon_0=-90.5 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+
 def convertir_a_gtm(lon, lat):
     """Convierte coordenadas de WGS84 (lat, lon) a GTM."""
     if not Transformer:
@@ -82,7 +85,7 @@ def convertir_a_gtm(lon, lat):
     try:
         transformer = Transformer.from_crs(
             "EPSG:4326", 
-            "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs",
+            GTM_PROJ_STR,
             always_xy=True
         )
         gtm_x, gtm_y = transformer.transform(lon, lat)
@@ -95,8 +98,7 @@ def calcular_distancia_direccion(p, poly):
     if not Transformer: return None
     try:
         # Proyección GTM para metros (EPSG:4326 -> GTM)
-        proj_gtm_str = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-        trans_to_meter = Transformer.from_crs("EPSG:4326", proj_gtm_str, always_xy=True)
+        trans_to_meter = Transformer.from_crs("EPSG:4326", GTM_PROJ_STR, always_xy=True)
         
         p_meter = transform(trans_to_meter.transform, p)
         poly_meter = transform(trans_to_meter.transform, poly)
@@ -309,8 +311,7 @@ def generar_mapa_imagen(puntos, concesiones=None):
                             
         # Plotear Campamentos (Casitas)
         if CAMPAMENTOS:
-            gtm_proj = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-            trans_gtm_to_3857 = Transformer.from_crs(gtm_proj, "EPSG:3857", always_xy=True)
+            trans_gtm_to_3857 = Transformer.from_crs(GTM_PROJ_STR, "EPSG:3857", always_xy=True)
             
             camp_xs, camp_ys = [], []
             for camp in CAMPAMENTOS:
@@ -326,7 +327,12 @@ def generar_mapa_imagen(puntos, concesiones=None):
         minx, miny = transformer.transform(-91.5, 15.8)
         maxx, maxy = transformer.transform(-89.0, 17.9)
         ax.set_xlim(minx, maxx); ax.set_ylim(miny, maxy)
-        cx.add_basemap(ax, crs="EPSG:3857", source=cx.providers.Esri.NatGeoWorldMap, attribution=False)
+        
+        try:
+            cx.add_basemap(ax, crs="EPSG:3857", source=cx.providers.Esri.NatGeoWorldMap, attribution=False)
+        except Exception as e:
+            print(f"⚠️ Advertencia: No se pudo descargar el mapa base ({e}). Se generará sin fondo.", file=sys.stderr)
+            
         ax.set_axis_off()
         
         buf = BytesIO()
@@ -568,8 +574,7 @@ def main():
     if Transformer:
         try:
             # Convertir GTM a Lat/Lon (WGS84) para el mapa web
-            gtm_proj = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
-            trans_gtm_to_wgs84 = Transformer.from_crs(gtm_proj, "EPSG:4326", always_xy=True)
+            trans_gtm_to_wgs84 = Transformer.from_crs(GTM_PROJ_STR, "EPSG:4326", always_xy=True)
             
             campamentos_web = []
             for c in CAMPAMENTOS:
