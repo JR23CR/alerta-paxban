@@ -119,6 +119,26 @@ def calcular_distancia_direccion(p, poly):
     except Exception:
         return None
 
+def calcular_campamento_cercano(lon, lat):
+    """Calcula el campamento más cercano y la distancia."""
+    if not Transformer: return "N/A"
+    try:
+        trans_to_gtm = Transformer.from_crs("EPSG:4326", GTM_PROJ_STR, always_xy=True)
+        fx, fy = trans_to_gtm.transform(lon, lat)
+        min_dist = float('inf')
+        nearest_camp = None
+        for c in CAMPAMENTOS:
+            # Distancia Euclidiana
+            dist = math.sqrt((fx - c['x'])**2 + (fy - c['y'])**2)
+            if dist < min_dist:
+                min_dist = dist
+                nearest_camp = c['nombre']
+        if nearest_camp:
+            return f"{int(min_dist)}m de {nearest_camp}"
+    except Exception:
+        pass
+    return "N/A"
+
 def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Paxbán", imagen_mapa=None, archivo_zip=None):
     """Envía un correo electrónico de alerta."""
     SMTP_SERVER = os.environ.get("SMTP_SERVER")
@@ -466,7 +486,8 @@ def main():
             puntos.append({
                 "lat": 17.7, "lon": -90.15, "color": "red", "alerta": True, "pre_alerta": False,
                 "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 1,
-                "concesion": "Paxbán", "gtm": convertir_a_gtm(-90.15, 17.7)
+                "concesion": "Paxbán", "gtm": convertir_a_gtm(-90.15, 17.7),
+                "dist_campamento": calcular_campamento_cercano(-90.15, 17.7)
             })
         elif action_type == "test_prealerta":
             # Punto CERCA de Paxbán (Zona de Amortiguamiento)
@@ -529,23 +550,7 @@ def main():
                                     if poly.contains(p):
                                         en_paxban = True
                                         concesion_nombre = "Paxbán"
-                                        
-                                        # Calcular distancia al campamento más cercano
-                                        if Transformer:
-                                            try:
-                                                trans_to_gtm = Transformer.from_crs("EPSG:4326", GTM_PROJ_STR, always_xy=True)
-                                                fx, fy = trans_to_gtm.transform(lon, lat)
-                                                min_dist = float('inf')
-                                                nearest_camp = None
-                                                for c in CAMPAMENTOS:
-                                                    # Distancia Euclidiana
-                                                    dist = math.sqrt((fx - c['x'])**2 + (fy - c['y'])**2)
-                                                    if dist < min_dist:
-                                                        min_dist = dist
-                                                        nearest_camp = c['nombre']
-                                                if nearest_camp:
-                                                    dist_campamento_str = f"{int(min_dist)}m de {nearest_camp}"
-                                            except: pass
+                                        dist_campamento_str = calcular_campamento_cercano(lon, lat)
                                         break
                                     # Buffer aproximado de 10km (0.09 grados)
                                     elif poly.distance(p) < 0.09:
