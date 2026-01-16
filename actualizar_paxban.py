@@ -508,11 +508,14 @@ def main():
         session.mount("http://", adapter)
 
         satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
         for sat in satelites:
             try:
                 print(f"⬇️ Descargando datos de {sat}...")
                 url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-94,13.5,-88,20/3"
-                res = session.get(url, timeout=60)
+                res = session.get(url, headers=headers, timeout=60)
                 if res.status_code == 200:
                     lines = res.text.strip().split('\n')[1:]
                     for line in lines:
