@@ -487,6 +487,7 @@ def main():
                 "lat": 17.7, "lon": -90.15, "color": "red", "alerta": True, "pre_alerta": False,
                 "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 1,
                 "concesion": "Paxbán", "gtm": convertir_a_gtm(-90.15, 17.7),
+                "dist_info": None,
                 "dist_campamento": calcular_campamento_cercano(-90.15, 17.7)
             })
         elif action_type == "test_prealerta":
@@ -506,7 +507,8 @@ def main():
                 "lat": lat, "lon": lon, "color": "orange", "alerta": False, "pre_alerta": True,
                 "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 12,
                 "concesion": "Zona de Amortiguamiento", "gtm": convertir_a_gtm(lon, lat),
-                "dist_info": dist_info_test
+                "dist_info": dist_info_test,
+                "dist_campamento": "N/A"
             })
         elif action_type == "test_monitoreo":
             # Sin puntos, solo fuerza el reporte verde
