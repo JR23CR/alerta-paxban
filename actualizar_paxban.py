@@ -127,14 +127,29 @@ def calcular_campamento_cercano(lon, lat):
         fx, fy = trans_to_gtm.transform(lon, lat)
         min_dist = float('inf')
         nearest_camp = None
+        nearest_coords = None
         for c in CAMPAMENTOS:
             # Distancia Euclidiana
             dist = math.sqrt((fx - c['x'])**2 + (fy - c['y'])**2)
             if dist < min_dist:
                 min_dist = dist
                 nearest_camp = c['nombre']
+                nearest_coords = (c['x'], c['y'])
         if nearest_camp:
-            return f"{int(min_dist)}m de {nearest_camp}"
+            cx, cy = nearest_coords
+            angle = math.degrees(math.atan2(fy - cy, fx - cx))
+            if angle < 0: angle += 360
+            
+            if 337.5 <= angle or angle < 22.5: card = "al Este"
+            elif 22.5 <= angle < 67.5: card = "al Noreste"
+            elif 67.5 <= angle < 112.5: card = "al Norte"
+            elif 112.5 <= angle < 157.5: card = "al Noroeste"
+            elif 157.5 <= angle < 202.5: card = "al Oeste"
+            elif 202.5 <= angle < 247.5: card = "al Suroeste"
+            elif 247.5 <= angle < 292.5: card = "al Sur"
+            else: card = "al Sureste"
+            
+            return f"{int(min_dist)}m de {nearest_camp} {card}"
     except Exception:
         pass
     return "N/A"
