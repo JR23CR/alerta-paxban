@@ -561,6 +561,27 @@ def main():
     # Guardar JSON para la web
     with open('incendios.json', 'w') as f: json.dump(puntos, f)
     
+    # --- GUARDAR CAMPAMENTOS PARA LA WEB ---
+    if Transformer:
+        try:
+            # Convertir GTM a Lat/Lon (WGS84) para el mapa web
+            gtm_proj = "+proj=tmerc +lat_0=15.83333333333333 +lon_0=-90.33333333333333 +k=0.9998 +x_0=500000 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m +no_defs"
+            trans_gtm_to_wgs84 = Transformer.from_crs(gtm_proj, "EPSG:4326", always_xy=True)
+            
+            campamentos_web = []
+            for c in CAMPAMENTOS:
+                lon, lat = trans_gtm_to_wgs84.transform(c['x'], c['y'])
+                campamentos_web.append({
+                    "nombre": c['nombre'],
+                    "lat": lat,
+                    "lon": lon
+                })
+            
+            with open('campamentos.json', 'w') as f: json.dump(campamentos_web, f)
+            print("✅ campamentos.json generado correctamente.")
+        except Exception as e:
+            print(f"⚠️ Error exportando campamentos: {e}", file=sys.stderr)
+
     alertas = [p for p in puntos if p['alerta']]
     pre_alertas = [p for p in puntos if p.get('pre_alerta')]
     force_report = os.environ.get("FORCE_REPORT", "false") == "true"
