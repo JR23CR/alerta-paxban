@@ -127,7 +127,6 @@ jobs:
           [ -d "descargas" ] && git add descargas/
           [ -f "reportes.html" ] && git add reportes.html
           [ -f "incendios.json" ] && git add -f incendios.json
-          [ -f "campamentos.json" ] && git add -f campamentos.json
           
           # Solo hacer commit si hay cambios para evitar errores
           if git diff --staged --quiet; then

@@ -308,19 +308,6 @@ def generar_mapa_imagen(puntos, concesiones=None):
                         for p in poly_3857.geoms:
                             x, y = p.exterior.xy
                             ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
-                            
-        # Plotear Campamentos (Casitas)
-        if CAMPAMENTOS:
-            trans_gtm_to_3857 = Transformer.from_crs(GTM_PROJ_STR, "EPSG:3857", always_xy=True)
-            
-            camp_xs, camp_ys = [], []
-            for camp in CAMPAMENTOS:
-                cx, cy = trans_gtm_to_3857.transform(camp['x'], camp['y'])
-                camp_xs.append(cx)
-                camp_ys.append(cy)
-                ax.text(cx, cy - 1500, camp['nombre'], fontsize=7, ha='center', va='top', color='black', fontweight='bold', bbox=dict(facecolor='white', alpha=0.6, edgecolor='none', pad=0.5), zorder=4)
-            
-            ax.scatter(camp_xs, camp_ys, c='#795548', s=90, marker='p', edgecolors='white', linewidth=1, zorder=4, label='Campamentos')
 
         if xs: ax.scatter(xs, ys, c=colores, s=50, edgecolors='white', zorder=2)
         
@@ -534,6 +521,7 @@ def main():
                             en_paxban = False
                             en_prealerta = False
                             concesion_nombre = "Externa"
+                            dist_campamento_str = "N/A"
                             dist_info = None
                             
                             for nom, poly in concesiones.items():
@@ -541,6 +529,23 @@ def main():
                                     if poly.contains(p):
                                         en_paxban = True
                                         concesion_nombre = "Paxbán"
+                                        
+                                        # Calcular distancia al campamento más cercano
+                                        if Transformer:
+                                            try:
+                                                trans_to_gtm = Transformer.from_crs("EPSG:4326", GTM_PROJ_STR, always_xy=True)
+                                                fx, fy = trans_to_gtm.transform(lon, lat)
+                                                min_dist = float('inf')
+                                                nearest_camp = None
+                                                for c in CAMPAMENTOS:
+                                                    # Distancia Euclidiana
+                                                    dist = math.sqrt((fx - c['x'])**2 + (fy - c['y'])**2)
+                                                    if dist < min_dist:
+                                                        min_dist = dist
+                                                        nearest_camp = c['nombre']
+                                                if nearest_camp:
+                                                    dist_campamento_str = f"{int(min_dist)}m de {nearest_camp}"
+                                            except: pass
                                         break
                                     # Buffer aproximado de 10km (0.09 grados)
                                     elif poly.distance(p) < 0.09:
@@ -558,7 +563,8 @@ def main():
                                 "sat": sat, "fecha": f"{d[5]} {d[6]}", "horas": horas,
                                 "concesion": concesion_nombre,
                                 "gtm": convertir_a_gtm(lon, lat),
-                                "dist_info": dist_info
+                                "dist_info": dist_info,
+                                "dist_campamento": dist_campamento_str
                             })
                         except: pass
             except Exception as e:
@@ -570,26 +576,6 @@ def main():
     # Guardar JSON para la web
     with open('incendios.json', 'w') as f: json.dump(puntos, f)
     
-    # --- GUARDAR CAMPAMENTOS PARA LA WEB ---
-    if Transformer:
-        try:
-            # Convertir GTM a Lat/Lon (WGS84) para el mapa web
-            trans_gtm_to_wgs84 = Transformer.from_crs(GTM_PROJ_STR, "EPSG:4326", always_xy=True)
-            
-            campamentos_web = []
-            for c in CAMPAMENTOS:
-                lon, lat = trans_gtm_to_wgs84.transform(c['x'], c['y'])
-                campamentos_web.append({
-                    "nombre": c['nombre'],
-                    "lat": lat,
-                    "lon": lon
-                })
-            
-            with open('campamentos.json', 'w') as f: json.dump(campamentos_web, f)
-            print("✅ campamentos.json generado correctamente.")
-        except Exception as e:
-            print(f"⚠️ Error exportando campamentos: {e}", file=sys.stderr)
-
     alertas = [p for p in puntos if p['alerta']]
     pre_alertas = [p for p in puntos if p.get('pre_alerta')]
     force_report = os.environ.get("FORCE_REPORT", "false") == "true"
@@ -652,16 +638,16 @@ def main():
             <h4 style="color: #333; margin: 10px 0 5px 0;">Detalles de los Focos Detectados:</h4>
             <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
                 <tr style="background-color: #ef5350; color: white; text-align: left;">
-                    <th style="padding: 5px; border: 1px solid #ddd;">#</th><th style="padding: 5px; border: 1px solid #ddd;">Coordenadas</th><th style="padding: 5px; border: 1px solid #ddd;">GTM</th><th style="padding: 5px; border: 1px solid #ddd;">Fecha/Hora (UTC)</th><th style="padding: 5px; border: 1px solid #ddd;">Satélite</th>
+                    <th style="padding: 5px; border: 1px solid #ddd;">#</th><th style="padding: 5px; border: 1px solid #ddd;">Referencia</th><th style="padding: 5px; border: 1px solid #ddd;">Coordenadas</th><th style="padding: 5px; border: 1px solid #ddd;">GTM</th><th style="padding: 5px; border: 1px solid #ddd;">Fecha/Hora</th>
                 </tr>"""
         for i, p in enumerate(alertas):
             html += f"""
             <tr style="background-color: {'#ffebee' if i % 2 == 0 else '#ffffff'}; font-size: 11px;">
                 <td style="padding: 4px; border: 1px solid #ddd;">{i+1}</td>
+                <td style="padding: 4px; border: 1px solid #ddd;"><strong>{p.get('dist_campamento', 'N/A')}</strong></td>
                 <td style="padding: 4px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td>
                 <td style="padding: 4px; border: 1px solid #ddd;">{p['gtm']}</td>
                 <td style="padding: 4px; border: 1px solid #ddd;">{p['fecha']}</td>
-                <td style="padding: 4px; border: 1px solid #ddd;">{p['sat']}</td>
             </tr>"""
         html += "</table>"
         html += '<p style="margin: 10px 0 5px 0;">A continuación se presenta el mapa de la situación:</p>'

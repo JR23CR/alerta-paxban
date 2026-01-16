@@ -101,7 +101,6 @@
 
         var incendiosLayer = L.layerGroup().addTo(map);
         var concesionesLayer = L.layerGroup().addTo(map);
-        var campamentosLayer = L.layerGroup().addTo(map);
 
         // Control de Capas (Posicionado a la izquierda para no tapar el panel de filtros)
         L.control.layers({
@@ -110,8 +109,6 @@
             "OpenStreetMap": osm
         }, {
             "Incendios": incendiosLayer,
-            "Concesiones": concesionesLayer,
-            "Campamentos": campamentosLayer
         }, { position: 'topleft' }).addTo(map);
 
         var datosIncendios = [];
@@ -132,25 +129,6 @@
                 }).addTo(concesionesLayer);
             })
             .catch(err => console.error("Error cargando concesiones:", err));
-
-        // Cargar Campamentos
-        fetch('campamentos.json')
-            .then(response => response.json())
-            .then(data => {
-                data.forEach(c => {
-                    var iconoCasa = L.divIcon({
-                        html: '<div style="font-size: 20px; text-align: center;">🏠<div style="font-size: 10px; background: rgba(255,255,255,0.8); padding: 0 2px; border-radius: 3px; white-space: nowrap; margin-top: -5px;">' + c.nombre + '</div></div>',
-                        className: 'dummy-class', // Clase vacía para quitar estilos por defecto de Leaflet
-                        iconSize: [30, 40],
-                        iconAnchor: [15, 20]
-                    });
-
-                    L.marker([c.lat, c.lon], {icon: iconoCasa})
-                     .bindPopup("<b>Campamento:</b> " + c.nombre)
-                     .addTo(campamentosLayer);
-                });
-            })
-            .catch(err => console.error("Error cargando campamentos:", err));
 
         // Cargar Incendios
         fetch('incendios.json')
