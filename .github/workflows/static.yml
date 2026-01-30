@@ -56,7 +56,7 @@ jobs:
       - name: Configurar Destinatarios y Modo
         run: |
           # Definir listas de correos
-          EMAILS_ALERTAS="coradojose952@gmail.com, forestal@gibor.com, regencia@gibor.com"
+          EMAILS_ALERTAS="coradojose952@gmail.com, forestal@gibor.com, regencia@gibor.com, sebastiannavarrox07@gmail.com"
           EMAIL_MANUAL="coradojose952@gmail.com"
           
           # Capturar input manual
