@@ -3,8 +3,7 @@ on:
   push:
     branches: ["main"]
   schedule:
-    - cron: '0 * * * *'
-    - cron: '0 22 * * *' # Reporte diario 4:00 PM Guatemala (22:00 UTC)
+    - cron: '0 * * * *' # Monitoreo cada hora (Solo alertas)
   workflow_dispatch:
     inputs:
       action_type:
@@ -89,13 +88,8 @@ jobs:
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
             echo "REPORT_REASON=por solicitud manual" >> $GITHUB_ENV
-          elif [[ "${{ github.event.schedule }}" == "0 22 * * *" ]]; then
-            echo "Modo: Reporte Diario 4:00 PM (A todos)"
-            echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
-            echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
-            echo "FORCE_REPORT=true" >> $GITHUB_ENV
-            echo "REPORT_REASON=automáticamente (programado)" >> $GITHUB_ENV
           else
+            # CRON AUTOMÁTICO (CADA HORA)
             echo "Modo: Monitoreo Automático (A todos, solo si hay fuego)"
             echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
@@ -116,7 +110,7 @@ jobs:
         run: python actualizar_paxban.py
 
       - name: Guardar Reporte en Repositorio
-        if: env.FORCE_REPORT == 'true' # Solo guardar si es reporte diario/manual
+        if: env.FORCE_REPORT == 'true' # Solo guardar si es un reporte forzado
         run: |
           git config --global user.name "Paxban Bot"
           git config --global user.email "bot@paxban.com"
@@ -150,4 +144,4 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          timeout: 1200000 # Aumentar espera a 20 minutos (en milisegundos)
+          timeout: 1200000 # Nota: Este valor puede ser alto, pero GitHub lo acepta.
