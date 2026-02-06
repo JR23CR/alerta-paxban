@@ -321,9 +321,14 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
                             d = [x.strip().replace('"', '') for x in line.split(',')]
                             
                             # --- FILTRO DE SEGURIDAD DE FECHA ---
-                            # Comparación estricta pero limpia
-                            if len(d) > 5 and d[5] != fecha_str:
-                                continue
+                            # Usamos objetos de fecha para evitar errores de formato (ej: 2026-2-6 vs 2026-02-06)
+                            if len(d) > 5:
+                                try:
+                                    fecha_dato = datetime.strptime(d[5], "%Y-%m-%d").date()
+                                    fecha_req = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+                                    if fecha_dato != fecha_req:
+                                        continue # Ignorar si la fecha no coincide exactamente
+                                except: pass
 
                             # Agregar punto (Color rojo para visibilidad en reporte semanal)
                             puntos.append({"lat": float(d[0]), "lon": float(d[1]), "color": "red"})
@@ -648,7 +653,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     run = p.add_run()
                     run.add_picture(img_path, width=Inches(6.0))
                     nombre_limpio = os.path.basename(img_path).replace(".png", "").replace("Mapa_Semanal_", "").replace("_", " ")
-                    caption = doc.add_paragraph(f"{nombre_limpio}")
+                    caption = doc.add_paragraph(f"{nombre_limpio}\n(Puntos acumulados del periodo)")
                     caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     caption.style.font.size = Pt(9)
                     caption.style.font.italic = True
@@ -707,7 +712,11 @@ def generar_reporte_mensual(concesiones):
                 print(f"📂 Copiando mapas desde: {src}")
                 for f in os.listdir(src):
                     if f.endswith(".png"):
-                        shutil.copy2(os.path.join(src, f), os.path.join(raiz, "Reporte Diario"))
+                        # --- FILTRO DE SEGURIDAD DE ARCHIVOS ---
+                        # Solo copiar si el nombre del archivo coincide con el mes/año del reporte
+                        # Esto evita que un mapa de Febrero (02) se cuele en el reporte de Enero (01)
+                        if f"_{anio}-{mes}-" in f:
+                            shutil.copy2(os.path.join(src, f), os.path.join(raiz, "Reporte Diario"))
 
         # Recolectar detalles de incendios y copiar imágenes
         fires_details = []
