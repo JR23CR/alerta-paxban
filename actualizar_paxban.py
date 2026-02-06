@@ -283,6 +283,43 @@ def limpiar_descargas_antiguas():
                         print(f"🗑️ Borrando duplicado obsoleto: {item_path}")
                         shutil.rmtree(item_path, ignore_errors=True)
 
+def descargar_puntos_historicos(fecha_inicio, fecha_fin):
+    """Descarga TODOS los puntos de calor de la región para un rango de fechas."""
+    puntos = []
+    session = requests.Session()
+    retry = Retry(total=3, backoff_factor=1)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("https://", adapter)
+    
+    start = datetime.strptime(fecha_inicio, "%Y-%m-%d").date()
+    end = datetime.strptime(fecha_fin, "%Y-%m-%d").date()
+    delta = end - start
+    dias = [start + timedelta(days=i) for i in range(delta.days + 1)]
+    
+    satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
+    headers = {"User-Agent": "PaxbanBot/1.0"}
+    
+    print(f"📡 Descargando historial regional del {fecha_inicio} al {fecha_fin}...")
+    
+    for dia in dias:
+        fecha_str = dia.strftime("%Y-%m-%d")
+        for sat in satelites:
+            try:
+                # API para 1 día específico en el área
+                url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-94,13.5,-88,20/1/{fecha_str}"
+                res = session.get(url, headers=headers, timeout=10)
+                if res.status_code == 200:
+                    lines = res.text.strip().split('\n')[1:]
+                    for line in lines:
+                        try:
+                            d = line.split(',')
+                            # Agregar punto (Color rojo para visibilidad en reporte semanal)
+                            puntos.append({"lat": float(d[0]), "lon": float(d[1]), "color": "red"})
+                        except: pass
+            except: pass
+            time.sleep(0.1) # Evitar saturación
+    return puntos
+
 def generar_galeria_html():
     """Genera reportes.html."""
     try:
@@ -586,8 +623,8 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
         # --- ANEXO GRÁFICO ---
         if map_images:
             doc.add_page_break()
-            doc.add_heading('4. Anexo Gráfico: Mapas de Situación', level=1)
-            doc.add_paragraph("A continuación se presentan los mapas diarios generados durante el periodo, ilustrando la cobertura de monitoreo sobre la región de Petén.").alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            doc.add_heading('4. Reportes de Monitoreo Semanal', level=1)
+            doc.add_paragraph("A continuación se presentan los mapas de calor acumulados por semana, mostrando TODA la actividad térmica detectada en la región (incluyendo quemas agrícolas y eventos externos) para verificar la cobertura del monitoreo.").alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             
             for img_path in map_images:
                 if os.path.exists(img_path):
@@ -595,8 +632,8 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     run = p.add_run()
                     run.add_picture(img_path, width=Inches(6.0))
-                    nombre_limpio = os.path.basename(img_path).replace(".png", "").replace("Mapa_Calor_", "").replace("_", " ")
-                    caption = doc.add_paragraph(f"Mapa de Situación: {nombre_limpio}")
+                    nombre_limpio = os.path.basename(img_path).replace(".png", "").replace("Mapa_Semanal_", "").replace("_", " ")
+                    caption = doc.add_paragraph(f"{nombre_limpio}")
                     caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     caption.style.font.size = Pt(9)
                     caption.style.font.italic = True
@@ -681,26 +718,29 @@ def generar_reporte_mensual(concesiones):
         periodos = [(1, 7), (8, 14), (15, 21), (22, 31)]
         
         for i, (inicio, fin) in enumerate(periodos):
-            # Filtrar puntos de la semana correspondiente
-            puntos_semana = []
-            for fire in fires_details:
-                try:
-                    # Formato esperado: "DD/MM/YYYY HH:MM (Hora GT)"
-                    dia = int(fire['fecha'].split('/')[0])
-                    if inicio <= dia <= fin:
-                        puntos_semana.append(fire)
-                except: pass
+            # Calcular fechas reales para la descarga
+            try:
+                # Ajustar fin si el mes tiene menos días
+                ultimo_dia_mes = (datetime(int(anio), int(mes) % 12 + 1, 1) - timedelta(days=1)).day if int(mes) < 12 else 31
+                fin_real = min(fin, ultimo_dia_mes)
+                
+                f_inicio = f"{anio}-{mes}-{inicio:02d}"
+                f_fin = f"{anio}-{mes}-{fin_real:02d}"
+                
+                # Descargar DATOS REALES de la región para esa semana
+                puntos_semana = descargar_puntos_historicos(f_inicio, f_fin)
             
-            # Generar mapa acumulado (incluso si está vacío, para mostrar cobertura)
-            print(f"🗺️ Generando mapa acumulado Semana {i+1} ({len(puntos_semana)} puntos)...")
-            img_bytes = generar_mapa_imagen(puntos_semana, concesiones)
-            
-            if img_bytes:
-                nombre_archivo = f"Semana_{i+1}_(Dias_{inicio}_al_{fin}).png"
-                ruta_archivo = os.path.join(temp_maps_dir, nombre_archivo)
-                with open(ruta_archivo, "wb") as f:
-                    f.write(img_bytes)
-                map_images_paths.append(ruta_archivo)
+                print(f"🗺️ Generando Reporte de Monitoreo Semana {i+1} ({len(puntos_semana)} puntos regionales)...")
+                img_bytes = generar_mapa_imagen(puntos_semana, concesiones)
+                
+                if img_bytes:
+                    nombre_archivo = f"Mapa_Semanal_Reporte_Monitoreo_Semana_{i+1}_(Del_{inicio}_al_{fin_real}).png"
+                    ruta_archivo = os.path.join(temp_maps_dir, nombre_archivo)
+                    with open(ruta_archivo, "wb") as f:
+                        f.write(img_bytes)
+                    map_images_paths.append(ruta_archivo)
+            except Exception as e:
+                print(f"⚠️ Error procesando semana {i+1}: {e}")
 
         # Generar Word con el nuevo formato
         crear_informe_word(
