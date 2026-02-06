@@ -317,10 +317,11 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
                     lines = res.text.strip().split('\n')[1:]
                     for line in lines:
                         try:
-                            d = line.split(',')
+                            # Limpiar espacios y comillas de cada campo para evitar errores de comparación
+                            d = [x.strip().replace('"', '') for x in line.split(',')]
+                            
                             # --- FILTRO DE SEGURIDAD DE FECHA ---
-                            # Si la fecha del dato (columna 5) no es la que pedimos, lo ignoramos.
-                            # Esto evita que se cuelen datos de "hoy" en reportes pasados.
+                            # Comparación estricta pero limpia
                             if len(d) > 5 and d[5] != fecha_str:
                                 continue
 
@@ -905,7 +906,8 @@ def main():
                     lines = res.text.strip().split('\n')[1:]
                     for line in lines:
                         try:
-                            d = line.split(',')
+                            # Limpieza robusta de datos
+                            d = [x.strip().replace('"', '') for x in line.split(',')]
                             lat, lon = float(d[0]), float(d[1])
                             p = Point(lon, lat)
                             
@@ -931,6 +933,10 @@ def main():
                             
                             # Calcular antigüedad
                             dt = datetime.strptime(f"{d[5]} {d[6]}", "%Y-%m-%d %H%M")
+                            
+                            # Filtro de seguridad: Ignorar fechas futuras (errores de API)
+                            if dt > datetime.utcnow(): continue
+                            
                             horas = (datetime.utcnow() - dt).total_seconds() / 3600
                             color = "red" if horas <= 24 else "orange" if horas <= 48 else "yellow"
                             
