@@ -884,7 +884,7 @@ def main():
             
             puntos.append({
                 "lat": lat, "lon": lon, "color": "orange", "alerta": False, "pre_alerta": True,
-                "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 12,
+                "sat": "SIMULACRO", "fecha": fecha_sim, "horas": 1,
                 "concesion": "Zona de Amortiguamiento", "gtm": convertir_a_gtm(lon, lat),
                 "dist_info": dist_info_test,
                 "dist_campamento": "N/A"
@@ -991,6 +991,7 @@ def main():
         img_bytes = generar_mapa_imagen(puntos, concesiones)
         if force_report: guardar_mapa_local(img_bytes)
         if alertas: guardar_bitacora(img_bytes, "alertas", alertas)
+        if pre_alertas: guardar_bitacora(img_bytes, "pre_alertas", pre_alertas)
 
     # --- ENVIAR CORREOS SEGÚN PRIORIDAD ---
     
@@ -1055,6 +1056,14 @@ def main():
                 <td style="padding: 4px; border: 1px solid #ddd;">{p['fecha']}</td>
             </tr>"""
         html += "</table>"
+        
+        # Agregar aviso de pre-alertas si existen simultáneamente
+        if pre_alertas:
+            html += f"""<div style="background-color: #FFF3E0; padding: 8px; border-left: 4px solid #F57F17; margin: 10px 0;">
+                <h4 style="margin: 0; color: #E65100;">⚠️ Adicionalmente: {len(pre_alertas)} focos en Zona de Amortiguamiento</h4>
+                <p style="margin: 2px 0 0 0; font-size: 11px;">Se detectó actividad en el perímetro (10km) que requiere vigilancia.</p>
+            </div>"""
+            
         html += '<p style="margin: 10px 0 5px 0;">A continuación se presenta el mapa de la situación:</p>'
         if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 350px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
         html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxban</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""

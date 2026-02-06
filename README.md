@@ -8,6 +8,23 @@ El **Sistema de Alerta Temprana Paxban** es una solución tecnológica automatiz
 
 Este software opera en la nube integrando datos satelitales en tiempo real con análisis geoespacial preciso para proporcionar a los gestores forestales información crítica para la toma de decisiones y la respuesta rápida ante amenazas de fuego.
 
+## 🚀 Novedades de la Versión 2.1 (Febrero 2026)
+
+Esta actualización introduce mejoras críticas en la precisión de datos y la generación de informes:
+
+*   **Reportes Mensuales Mejorados**:
+    *   **Mapas Semanales Acumulados**: El informe Word ahora incluye mapas de "Reporte de Monitoreo" que visualizan *toda* la actividad térmica de la región por semana, permitiendo verificar la cobertura del satélite incluso si no hubo incendios en la concesión.
+    *   **Descarga Histórica Precisa**: Nuevo algoritmo que descarga el historial día por día de la NASA, filtrando datos corruptos o fechas futuras para garantizar que los mapas retrospectivos sean exactos.
+    *   **Formato Formal**: Documentos Word con estilo profesional, nuevo logo y estructura técnica ampliada.
+
+*   **Monitoreo en Tiempo Real**:
+    *   **Actualización Horaria Garantizada**: El mapa web ahora refresca sus datos (`incendios.json`) cada hora sin falta, mostrando la etiqueta de "Última actualización" en la interfaz.
+    *   **Filtros de Integridad**: Implementación de validación estricta de fechas para evitar que datos de días anteriores o errores de la API aparezcan en el mapa actual.
+
+*   **Robustez del Sistema**:
+    *   **Gestión de Conexión**: Protocolos mejorados para manejar caídas de los servidores de la NASA sin bloquear el sistema.
+    *   **Alertas Unificadas**: Si se detectan incendios internos y externos simultáneamente, el sistema envía un reporte consolidado inteligente.
+
 ## Funcionalidades Principales
 
 ### 1. Monitoreo Satelital Multiespectral
@@ -86,4 +103,4 @@ El sistema requiere las siguientes variables de entorno (Secretos de GitHub) par
 
 **Desarrollado para la conservación y protección de los recursos naturales de Guatemala.**
 **Desarrollado por JR23CR**
-*Versión 2.0 - Enero 2026*
+*Versión 2.1 - Febrero 2026*
