@@ -155,6 +155,10 @@ jobs:
             echo "No hay cambios en los mapas."
           else
             git commit -m "🗺️ Reporte Diario: Mapa y Galería Web [skip ci]"
+            
+            # Limpiar cambios no guardados (como reportes.html en monitoreo horario) para evitar bloqueo del pull
+            git reset --hard
+            
             # Sincronizar con el remoto y enviar
             git pull --rebase origin main
             git push origin HEAD:main
