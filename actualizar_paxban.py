@@ -154,7 +154,7 @@ def calcular_campamento_cercano(lon, lat):
         pass
     return "N/A"
 
-def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Paxbán", imagen_mapa=None, archivo_zip=None):
+def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Paxban", imagen_mapa=None, archivo_zip=None):
     """Envía un correo electrónico de alerta."""
     SMTP_SERVER = os.environ.get("SMTP_SERVER")
     SMTP_PORT = os.environ.get("SMTP_PORT")
@@ -241,10 +241,11 @@ def enviar_alerta_telegram(mensaje, imagen_bytes=None):
             print(f"⚠️ Error Telegram ({chat_id}): {e}", file=sys.stderr)
 
 def guardar_mapa_local(imagen_bytes):
-    """Guarda el mapa en la carpeta 2.4."""
+    """Guarda el mapa en la carpeta mapa_reporte_diario."""
     if not imagen_bytes: return
     fecha_dt = datetime.utcnow() - timedelta(hours=6)
-    carpeta = os.path.join("2.4", fecha_dt.strftime("%Y"), fecha_dt.strftime("%m"))
+    mes_nombre = MESES_ES.get(fecha_dt.strftime("%m"), fecha_dt.strftime("%m"))
+    carpeta = os.path.join("mapa_reporte_diario", fecha_dt.strftime("%Y"), mes_nombre)
     os.makedirs(carpeta, exist_ok=True)
     ruta = os.path.join(carpeta, f"Mapa_Calor_{fecha_dt.strftime('%Y-%m-%d')}.png")
     with open(ruta, "wb") as f: f.write(imagen_bytes)
@@ -265,8 +266,8 @@ def generar_galeria_html():
     """Genera reportes.html."""
     try:
         mapas = []
-        if os.path.exists("2.4"):
-            for root, _, files in os.walk("2.4"):
+        if os.path.exists("mapa_reporte_diario"):
+            for root, _, files in os.walk("mapa_reporte_diario"):
                 for file in files:
                     if file.endswith(".png"):
                         url = os.path.join(root, file).replace(os.sep, '/')
@@ -300,7 +301,25 @@ def generar_galeria_html():
         # Ordenar por nombre de archivo original para mantener orden cronológico
         reportes_mensuales.sort(key=lambda x: x['filename'], reverse=True)
 
-        html = """<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reportes Paxbán</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"></head><body class="bg-light"><div class="container py-5"><div class="d-flex justify-content-between align-items-center mb-4"><h1 class="text-success m-0">📂 Galería de Reportes</h1><a href="./" class="btn btn-outline-success">🏠 Inicio</a></div>"""
+        html = """<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Reportes Paxban</title><link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            .card-img-top { height: 200px; object-fit: cover; }
+            @media (max-width: 768px) { 
+                h1 { font-size: 1.5rem; } 
+                .container { padding-left: 15px; padding-right: 15px; }
+                /* En móvil el botón es sólido para que no se vea como un bloque blanco vacío */
+                .btn-pc-outline { background-color: #198754 !important; color: white !important; width: 100%; }
+            }
+            @media (min-width: 769px) {
+                .btn-pc-outline { width: auto; }
+            }
+        </style>
+        </head><body class="bg-light">
+        <div class="container py-4 py-md-5">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4 gap-3">
+                <h1 class="text-success fw-bold m-0">📂 Galería de Reportes</h1>
+                <a href="index.html" class="btn btn-outline-success btn-pc-outline px-4 shadow-sm">🏠 Volver al Inicio</a>
+            </div>"""
         
         # Sección Reportes Mensuales
         if reportes_mensuales:
@@ -320,7 +339,7 @@ def generar_galeria_html():
     except Exception as e:
         print(f"❌ Error generando galería: {e}", file=sys.stderr)
 
-def generar_mapa_imagen(puntos, concesiones=None):
+def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1):
     """Genera imagen PNG del mapa."""
     if not Transformer: return None
     try:
@@ -345,9 +364,28 @@ def generar_mapa_imagen(puntos, concesiones=None):
                             ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
 
         if xs: ax.scatter(xs, ys, c=colores, s=50, edgecolors='white', zorder=2)
-        
-        minx, miny = transformer.transform(-91.5, 15.8)
-        maxx, maxy = transformer.transform(-89.0, 17.9)
+
+        paxban_poly = None
+        if concesiones:
+            for nombre, poly in concesiones.items():
+                if "Paxbán" in nombre:
+                    paxban_poly = poly
+                    break
+
+        if center_point:
+            lon, lat = center_point
+            minx, miny = transformer.transform(lon - buffer, lat - buffer)
+            maxx, maxy = transformer.transform(lon + buffer, lat + buffer)
+        elif paxban_poly:
+            # Enfocar automáticamente en el polígono de Paxbán
+            bounds = paxban_poly.bounds # (minx, miny, maxx, maxy)
+            margin = 0.05 # Margen de visualización
+            minx, miny = transformer.transform(bounds[0] - margin, bounds[1] - margin)
+            maxx, maxy = transformer.transform(bounds[2] + margin, bounds[3] + margin)
+        else:
+            minx, miny = transformer.transform(-91.5, 15.8)
+            maxx, maxy = transformer.transform(-89.0, 17.9)
+
         ax.set_xlim(minx, maxx); ax.set_ylim(miny, maxy)
         
         try:
@@ -365,18 +403,108 @@ def generar_mapa_imagen(puntos, concesiones=None):
         print(f"⚠️ Error generando mapa: {e}", file=sys.stderr)
         return None
 
-def crear_informe_word(ruta_salida, mes_str, anio, stats, img_ejemplo=None):
+def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, concesiones=None):
     if not Document: return
     try:
         doc = Document()
-        doc.add_heading(f'INFORME MENSUAL - {mes_str} {anio}', 0).alignment = WD_ALIGN_PARAGRAPH.CENTER
-        doc.add_paragraph(f"Incendios Paxbán: {stats['incendios']} | Pre-Alertas: {stats['pre_alertas']}")
-        if img_ejemplo: doc.add_picture(img_ejemplo, width=Inches(6))
+        
+        # Configuración de estilo base (Arial 11)
+        style = doc.styles['Normal']
+        style.font.name = 'Arial'
+        style.font.size = Pt(11)
+
+        # Título Principal
+        title = doc.add_heading('SISTEMA DE ALERTA TEMPRANA PAXBAN', 0)
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Mes del Informe
+        subtitle = doc.add_heading(f'INFORME MENSUAL: {mes_nombre.upper()} {anio}', 1)
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Introducción Técnica
+        intro_text = (
+            "El presente documento constituye el informe técnico mensual generado por el Sistema de Alerta Temprana Paxbán, "
+            "una herramienta tecnológica de vanguardia implementada para la vigilancia permanente y detección oportuna de "
+            "anomalías térmicas en la Concesión Industrial Paxbán, ubicada en la Zona de Uso Múltiple de la Reserva de la "
+            "Biosfera Maya (RBM). Este software opera de manera automatizada en la nube, integrando datos satelitales de "
+            "alta resolución en tiempo real con análisis geoespacial preciso, con el objetivo primordial de fortalecer las "
+            "capacidades de respuesta rápida y proporcionar información crítica para la gestión forestal sostenible y la "
+            "protección de la biodiversidad, en cumplimiento con los lineamientos del Consejo Nacional de Áreas Protegidas (CONAP)."
+        )
+        p_intro = doc.add_paragraph(intro_text)
+        p_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        # Sección de Metodología
+        doc.add_heading('Metodología de Monitoreo', 2)
+        metodo_text = (
+            "La metodología empleada se basa en el monitoreo constante de los sensores MODIS (Moderate Resolution Imaging "
+            "Spectroradiometer) y VIIRS (Visible Infrared Imaging Radiometer Suite) a través de la plataforma NASA FIRMS. "
+            "El sistema realiza un filtrado geoespacial automatizado para identificar focos de calor dentro de los límites "
+            "oficiales de la concesión y en su zona de amortiguamiento perimetral, permitiendo una clasificación de alertas "
+            "por nivel de riesgo y proximidad a campamentos de control."
+        )
+        p_metodo = doc.add_paragraph(metodo_text)
+        p_metodo.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        # Sección de Objetivos
+        doc.add_heading('Objetivos del Sistema', 2)
+        objs = doc.add_paragraph("• Detectar de forma temprana focos de incendio forestal para minimizar el impacto ambiental.\n"
+                                 "• Proveer coordenadas precisas en formato GTM para facilitar el despliegue de cuadrillas terrestres.\n"
+                                 "• Mantener un registro histórico auditable de la actividad térmica en la región.")
+        objs.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        # Resumen de Detecciones
+        doc.add_heading('Resultados del Periodo', 2)
+        if fires_list:
+            resumen_p = doc.add_paragraph(f"Durante el mes de {mes_nombre} de {anio}, se identificaron {len(fires_list)} puntos de calor dentro del área de interés:")
+            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            
+            for i, fire in enumerate(fires_list, 1):
+                p = doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                ref = fire.get('dist_campamento', 'N/A')
+                gtm = fire.get('gtm', 'N/A')
+                fecha = fire.get('fecha', 'N/A')
+                p.add_run(f"Punto de detección térmica No. {i}: ").bold = True
+                p.add_run(f"Identificado el {fecha}. Referencia de ubicación: {ref}. Coordenadas proyectadas GTM: {gtm}.")
+                
+                # Generar e insertar imagen enfocada para este punto
+                if concesiones:
+                    img_focused = generar_mapa_imagen([fire], concesiones, center_point=(fire['lon'], fire['lat']), buffer=0.08)
+                    if img_focused:
+                        img_stream = BytesIO(img_focused)
+                        doc.add_picture(img_stream, width=Inches(4.5))
+                        doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                
+                doc.add_paragraph("") # Espacio entre puntos
+        else:
+            resumen_p = doc.add_paragraph(
+                f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido de 24 horas diarias. "
+                f"Tras el análisis de los datos satelitales procesados, se informa que no se detectaron anomalías térmicas ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán."
+            )
+            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+        # Inserción de Mapas (Máximo 4)
+        if map_images:
+            doc.add_page_break()
+            doc.add_heading('Mapas de Situación Mensual', 2).alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for img_path in map_images[:4]:
+                if os.path.exists(img_path):
+                    doc.add_picture(img_path, width=Inches(5.5))
+                    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+
+        # Firma Final
+        doc.add_paragraph("\n\n")
+        firma = doc.add_paragraph("Sistema de Alerta Temprana Paxban")
+        firma.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        firma_run = firma.add_run("\ndesarrollado por\nNery Jose Corado Ramírez\nMiembro de la CIF\nGIBOR, S.A")
+        firma_run.italic = True
+
         doc.save(ruta_salida)
     except Exception as e:
         print(f"⚠️ Error creando Word: {e}", file=sys.stderr)
 
-def generar_reporte_mensual():
+def generar_reporte_mensual(concesiones):
     """Genera ZIP mensual."""
     print("📦 Iniciando generación de Reporte Mensual...")
     try:
@@ -392,22 +520,39 @@ def generar_reporte_mensual():
         for d in ["Reporte Diario", "Incendios Detectados", "Informe de Puntos de Calor"]:
             os.makedirs(os.path.join(raiz, d), exist_ok=True)
             
-        # Copiar contenido 2.4
-        src_diario = os.path.join("2.4", anio, mes)
+        # Copiar contenido mapa_reporte_diario
+        src_diario = os.path.join("mapa_reporte_diario", anio, nombre_mes)
         if os.path.exists(src_diario):
             for f in os.listdir(src_diario): shutil.copy2(os.path.join(src_diario, f), os.path.join(raiz, "Reporte Diario"))
 
-        # Copiar alertas
-        count_inc = 0
+        # Recolectar detalles de incendios y copiar imágenes
+        fires_details = []
         src_alertas = os.path.join("bitacora", anio, mes, "alertas")
         if os.path.exists(src_alertas):
-            for f in os.listdir(src_alertas): 
-                if f.endswith(".png"): 
+            for f in sorted(os.listdir(src_alertas)):
+                if f.endswith(".png"):
                     shutil.copy2(os.path.join(src_alertas, f), os.path.join(raiz, "Incendios Detectados"))
-                    count_inc += 1
+                elif f.endswith(".json"):
+                    try:
+                        with open(os.path.join(src_alertas, f), 'r', encoding='utf-8') as jf:
+                            data = json.load(jf)
+                            if isinstance(data, list): fires_details.extend(data)
+                            else: fires_details.append(data)
+                    except: pass
 
-        # Word
-        crear_informe_word(os.path.join(raiz, "Informe de Puntos de Calor", "Informe.docx"), mes, anio, {'incendios': count_inc, 'pre_alertas': 0})
+        # Recolectar los últimos 4 mapas diarios para el Word
+        map_images_paths = []
+        src_diario_full = os.path.join("mapa_reporte_diario", anio, nombre_mes)
+        if os.path.exists(src_diario_full):
+            all_maps = sorted([os.path.join(src_diario_full, f) for f in os.listdir(src_diario_full) if f.endswith(".png")], reverse=True)
+            map_images_paths = all_maps[:4]
+
+        # Generar Word con el nuevo formato
+        crear_informe_word(
+            os.path.join(raiz, "Informe de Puntos de Calor", "Informe.docx"), 
+            nombre_mes, anio, fires_details, map_images_paths,
+            concesiones=concesiones
+        )
 
         # ZIP
         zip_filename = f"Reporte_Mensual_{mes}_{anio}"
@@ -441,7 +586,7 @@ def generar_reporte_mensual():
             <table style="width: 100%; border-bottom: 2px solid #1565C0; margin-bottom: 15px;">
                 <tr>
                     <td style="width: 100px; padding-bottom: 10px;">
-                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 90px; height: auto;">
+                        <img src="cid:logo_paxban" alt="Logo Paxban" style="width: 90px; height: auto;">
                     </td>
                     <td style="vertical-align: middle; padding-bottom: 10px;">
                         <h2 style="color: #1565C0; margin: 0;">📦 Reporte Mensual Generado: {nombre_mes} {anio}</h2>
@@ -464,7 +609,7 @@ def generar_reporte_mensual():
             <p>Puede descargar el archivo directamente desde este correo.</p>
             <br><hr style="border: 0; border-top: 1px solid #eee;">
             <div style="font-size: 12px; color: #666;">
-                <p><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado automáticamente.<br>Desarrollado por JR23CR</p>
+                <p><b>Sistema de Alerta Temprana Paxban</b><br>Mensaje generado automáticamente.<br>Desarrollado por JR23CR</p>
                 <p style="text-align: center;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #1565C0; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">📂 Ir a la Galería de Reportes</a></p>
             </div>
         </div>
@@ -485,7 +630,7 @@ def cargar_concesiones():
         return {}
 
 def main():
-    print("🚀 Iniciando sistema Paxbán...")
+    print("🚀 Iniciando sistema Paxban...")
     concesiones = cargar_concesiones()
     action_type = os.environ.get("ACTION_TYPE", "monitor")
     
@@ -613,7 +758,7 @@ def main():
     
     # 1. ALERTA ROJA (Incendio DENTRO de Paxbán)
     if alertas:
-        msg = f"🔥 <b>ALERTA PAXBÁN</b>\n"
+        msg = f"🔥 <b>ALERTA PAXBAN</b>\n"
         msg += f"<b>Se detectaron {len(alertas)} incendios activos.</b>\n"
         for i, p in enumerate(alertas):
             msg += f"\n🔴 <b>Foco {i+1}:</b>"
@@ -644,7 +789,7 @@ def main():
             <table style="width: 100%; border-bottom: 2px solid #D32F2F; margin-bottom: 10px;">
                 <tr>
                     <td style="width: 80px; padding-bottom: 5px;">
-                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 70px; height: auto;">
+                        <img src="cid:logo_paxban" alt="Logo Paxban" style="width: 70px; height: auto;">
                     </td>
                     <td style="vertical-align: middle; padding-bottom: 5px;">
                         <h2 style="color: #D32F2F; margin: 0; font-size: 18pt;">🔥 ALERTA DE INCENDIO DETECTADO 🔥</h2>
@@ -652,7 +797,7 @@ def main():
                 </tr>
             </table>
             <p style="margin: 5px 0;">Estimado usuario,</p>
-            <p style="margin: 5px 0;"><strong>¡Atención!</strong> El sistema Alerta Paxbán ha identificado <strong>{len(alertas)} foco(s) de incendio activos</strong> dentro de los polígonos de las concesiones monitoreadas.</p>
+            <p style="margin: 5px 0;"><strong>¡Atención!</strong> El sistema Alerta Paxban4 ha identificado <strong>{len(alertas)} foco(s) de incendio activos</strong> dentro de los polígonos de las concesiones monitoreadas.</p>
             <div class="alert-box" style="background-color: #ffcdd2; padding: 10px; border-left: 5px solid #D32F2F; margin: 10px 0;">
                 <h3 style="margin: 0; color: #b71c1c; font-size: 14pt;">Resumen de la Alerta</h3>
                 <p style="margin: 5px 0 0 0;">Se requiere verificación y acción inmediata.</p>
@@ -674,13 +819,13 @@ def main():
         html += "</table>"
         html += '<p style="margin: 10px 0 5px 0;">A continuación se presenta el mapa de la situación:</p>'
         if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 350px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
-        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
-        enviar_correo_alerta(html, asunto="🔥 ALERTA DE INCENDIO - Paxbán", imagen_mapa=img_bytes)
+        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxban</b><br>Mensaje generado por detección de amenaza.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #D32F2F; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
+        enviar_correo_alerta(html, asunto="🔥 ALERTA DE INCENDIO - Paxban", imagen_mapa=img_bytes)
         
     # 2. PRE-ALERTA AMARILLA (Incendio CERCA de Paxbán)
     elif pre_alertas:
         print(f"📧 Enviando Pre-Alerta por {len(pre_alertas)} focos...")
-        msg = f"⚠️ <b>PRE-ALERTA PAXBÁN</b>\n"
+        msg = f"⚠️ <b>PRE-ALERTA PAXBAN</b>\n"
         msg += f"<b>Actividad en zona de amortiguamiento ({len(pre_alertas)} focos).</b>\n"
         for i, p in enumerate(pre_alertas):
             msg += f"\n🟠 <b>Foco {i+1}:</b>"
@@ -713,7 +858,7 @@ def main():
             <table style="width: 100%; border-bottom: 2px solid #F57F17; margin-bottom: 10px;">
                 <tr>
                     <td style="width: 80px; padding-bottom: 5px;">
-                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 70px; height: auto;">
+                        <img src="cid:logo_paxban" alt="Logo Paxban" style="width: 70px; height: auto;">
                     </td>
                     <td style="vertical-align: middle; padding-bottom: 5px;">
                         <h2 style="color: #F57F17; margin: 0; font-size: 18pt;">⚠️ PRE-ALERTA DE INCENDIO</h2>
@@ -736,22 +881,27 @@ def main():
             html += f"""<tr style="background-color: #ffffff; font-size: 11px;"><td style="padding: 4px; border: 1px solid #ddd;">{i+1}</td><td style="padding: 4px; border: 1px solid #ddd;">{dist_txt}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['lat']:.4f}, {p['lon']:.4f}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['gtm']}</td><td style="padding: 4px; border: 1px solid #ddd;">{p['fecha']}</td></tr>"""
         html += "</table>"
         if img_bytes: html += '<br><img src="cid:mapa_peten" style="max-width: 100%; max-height: 350px; height: auto; border: 1px solid #ddd; border-radius: 5px; display: block; margin: 0 auto;"><br>'
-        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxbán</b><br>Mensaje de advertencia preventiva.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #F57F17; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
-        enviar_correo_alerta(html, asunto="⚠️ PRE-ALERTA DE INCENDIO - Paxbán", imagen_mapa=img_bytes)
+        html += f"""<br><hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;"><div style="font-size: 11px; color: #666;"><p style="margin: 2px 0;"><b>Sistema de Alerta Temprana Paxban</b><br>Mensaje de advertencia preventiva.<br>Desarrollado por JR23CR</p><p style="text-align: center; margin-top: 10px;" class="no-print"><a href="https://JR23CR.github.io/alerta-paxban/reportes.html" style="background-color: #F57F17; color: white; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 12px;">📂 Ver Galería de Reportes</a></p></div></div></body></html>"""
+        enviar_correo_alerta(html, asunto="⚠️ PRE-ALERTA DE INCENDIO - Paxban", imagen_mapa=img_bytes)
 
     # 3. REPORTE DIARIO VERDE (Sin amenazas o solo monitoreo)
     elif force_report:
         fecha_hora = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
         razon = os.environ.get("REPORT_REASON", "automáticamente")
         
-        # Mensaje Telegram
-        msg = f"🛰️ <b>Reporte de Monitoreo Satelital</b>\n\n" \
-              f"✅ <b>Estado: Sin Amenazas Detectadas</b>\n" \
-              f"No se han identificado focos activos dentro de las concesiones.\n\n" \
-              f"📍 Puntos analizados: {len(puntos)}\n" \
-              f"🕒 Hora: {fecha_hora}\n\n" \
-              f"Sistema de Alerta Paxbán"
-        enviar_alerta_telegram(msg, img_bytes)
+        # Solo enviar notificaciones si NO es el reporte automático programado de las 4 PM
+        # (Se mantiene el guardado del mapa en la galería pero sin el correo verde)
+        es_reporte_programado = "automáticamente" in razon and "Reporte Diario" in razon
+        
+        if not es_reporte_programado:
+            # Mensaje Telegram
+            msg = f"🛰️ <b>Reporte de Monitoreo Satelital</b>\n\n" \
+                  f"✅ <b>Estado: Sin Amenazas Detectadas</b>\n" \
+                  f"No se han identificado focos activos dentro de las concesiones.\n\n" \
+                  f"📍 Puntos analizados: {len(puntos)}\n" \
+                  f"🕒 Hora: {fecha_hora}\n\n" \
+                  f"Sistema de Alerta Temprana Paxban"
+            enviar_alerta_telegram(msg, img_bytes)
         
         # HTML Correo (Tu diseño)
         html = f"""
@@ -776,7 +926,7 @@ def main():
             <table style="width: 100%; border-bottom: 2px solid #2E7D32; margin-bottom: 10px;">
                 <tr>
                     <td style="width: 80px; padding-bottom: 5px;">
-                        <img src="cid:logo_paxban" alt="Logo Paxbán" style="width: 70px; height: auto;">
+                        <img src="cid:logo_paxban" alt="Logo Paxban" style="width: 70px; height: auto;">
                     </td>
                     <td style="vertical-align: middle; padding-bottom: 5px;">
                          <h2 style="color: #2E7D32; margin: 0; font-size: 18pt;">Reporte de Monitoreo Satelital</h2>
@@ -784,7 +934,7 @@ def main():
                 </tr>
             </table>
             <p style="margin: 5px 0;">Estimado usuario,</p>
-            <p style="margin: 5px 0;">El sistema Alerta Paxbán ha completado el análisis de los datos satelitales más recientes.</p>
+            <p style="margin: 5px 0;">El sistema Alerta Paxban ha completado el análisis de los datos satelitales más recientes.</p>
             
             <div class="status-box" style="background-color: #e8f5e9; padding: 10px; border-left: 5px solid #2e7d32; margin: 15px 0;">
                 <h3 style="margin: 0; color: #1b5e20; font-size: 14pt;">✅ Estado: Sin Amenazas Detectadas</h3>
@@ -806,7 +956,7 @@ def main():
             <hr style="border: 0; border-top: 1px solid #eee; margin: 10px 0;">
             <div style="font-size: 11px; color: #666;">
                 <p style="margin: 2px 0;">
-                    <b>Sistema de Alerta Temprana Paxbán</b><br>
+                    <b>Sistema de Alerta Temprana Paxban</b><br>
                     Mensaje generado {razon}.<br>
                     Desarrollado por JR23CR
                 </p>
@@ -818,11 +968,14 @@ def main():
         </body>
         </html>
         """
-        enviar_correo_alerta(html, asunto="Reporte de Monitoreo Satelital", imagen_mapa=img_bytes)
+        if not es_reporte_programado:
+            enviar_correo_alerta(html, asunto="Reporte de Monitoreo Satelital", imagen_mapa=img_bytes)
+        else:
+            print("ℹ️ Reporte diario procesado (Mapa guardado), pero se omite el envío de correo por ser programado.")
 
     # Reporte Mensual si se solicita
     if os.environ.get("ACTION_TYPE") == "reporte_mensual":
-        generar_reporte_mensual()
+        generar_reporte_mensual(concesiones)
 
     # Generar Galería SIEMPRE (Al final para incluir el reporte mensual si se generó)
     generar_galeria_html()

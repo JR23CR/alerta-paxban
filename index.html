@@ -3,205 +3,338 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitor de Incendios Paxbán</title>
-    
-    <!-- Leaflet CSS -->
+    <title>Paxban - Monitoreo de Incendios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { height: 100vh; width: 100%; }
+        :root {
+            --paxban-green: #1b5e20;
+            --paxban-light-green: #f1f8e9;
+            --paxban-accent: #2e7d32;
+        }
+        body, html { height: 100%; margin: 0; font-family: 'Inter', 'Segoe UI', sans-serif; overflow: hidden; background-color: #f8f9fa; }
         
-        .controls {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
+        .header-dash {
+            background: linear-gradient(90deg, var(--paxban-green) 0%, #2e7d32 100%);
+            color: white;
+            padding: 12px 25px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            min-width: 200px;
+            z-index: 1030;
+            position: relative;
         }
-        
-        .filter-group { margin-bottom: 10px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        select { padding: 5px; width: 100%; }
-        
+
+        .dashboard-wrapper { height: calc(100vh - 56px); }
+
+        .sidebar {
+            width: 250px;
+            background: var(--paxban-light-green);
+            border-right: 1px solid #c8e6c9;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            z-index: 1000;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        .btn-nav {
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: white;
+            margin-bottom: 12px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #444;
+            font-weight: 500;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-nav:hover {
+            background: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            color: var(--paxban-green);
+        }
+
+        .btn-nav.active {
+            background: var(--paxban-green);
+            color: white;
+            box-shadow: 0 4px 15px rgba(27, 94, 32, 0.3);
+        }
+
+        #map, #iframe-container { flex-grow: 1; height: 100%; width: 100%; }
+        #iframe-container iframe { width: 100%; height: 100%; border: none; }
+
         .legend {
-            margin-top: 15px;
-            font-size: 12px;
+            background: white;
+            padding: 12px;
+            line-height: 18px;
+            color: #555;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border: 1px solid #eee;
         }
-        .legend-item { display: flex; align-items: center; margin-bottom: 4px; }
-        .dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; display: inline-block; }
+        .legend i { width: 14px; height: 14px; float: left; margin-right: 8px; opacity: 0.8; border-radius: 50%; }
+
+        /* Estilo para la etiqueta de distancia sobre la línea */
+        .dist-label {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #000;
+            font-weight: bold;
+            color: #000;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-wrapper { flex-direction: column !important; }
+            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #dee2e6; padding: 15px; }
+            body { overflow: auto; }
+            #map, #iframe-container { height: 70vh; }
+            .btn-nav { padding: 10px 15px; font-size: 0.9rem; }
+        }
     </style>
 </head>
 <body>
-
-    <div class="controls">
-        <div style="margin-bottom: 15px; text-align: center;">
-            <a href="reportes.html" target="_blank" style="display: block; background-color: #2e7d32; color: white; padding: 10px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 13px;">📂 Galería de Descargas</a>
-        </div>
-        <h3>Filtros</h3>
-        <div class="filter-group">
-            <label for="timeFilter">Rango de Tiempo:</label>
-            <select id="timeFilter" onchange="actualizarMapa()">
-                <option value="24" selected>Últimas 24 horas (Rojo)</option>
-                <option value="48">Últimas 48 horas (Naranja)</option>
-                <option value="72">Últimas 72 horas (Amarillo)</option>
-            </select>
-        </div>
-
-        <div class="filter-group">
-            <label>Satélites:</label>
-            <div style="text-align: left;">
-                <input type="checkbox" id="satModis" value="MODIS_NRT" checked onchange="actualizarMapa()">
-                <label for="satModis" style="display:inline; font-weight:normal;">MODIS</label><br>
-                <input type="checkbox" id="satViirsSnpp" value="VIIRS_SNPP_NRT" checked onchange="actualizarMapa()">
-                <label for="satViirsSnpp" style="display:inline; font-weight:normal;">VIIRS SNPP</label><br>
-                <input type="checkbox" id="satViirsNoaa" value="VIIRS_NOAA20_NRT" checked onchange="actualizarMapa()">
-                <label for="satViirsNoaa" style="display:inline; font-weight:normal;">VIIRS NOAA20</label>
-            </div>
-        </div>
-        
-        <div class="legend">
-            <div class="legend-item"><span class="dot" style="background: red;"></span> ≤ 24 Horas</div>
-            <div class="legend-item"><span class="dot" style="background: orange;"></span> ≤ 48 Horas</div>
-            <div class="legend-item"><span class="dot" style="background: yellow;"></span> ≤ 72 Horas</div>
-        </div>
-        <div style="margin-top:10px; font-size:11px; color:#666;">
-            Datos actualizados cada hora.
-            <div id="info-actualizacion" style="margin-top: 8px; font-size: 13px; color: #333; border-top: 1px solid #ccc; padding-top: 5px;">Verificando fecha...</div>
-            <div style="margin-top: 5px; font-style: italic;">Desarrollado por JR23CR</div>
+    <div class="header-dash d-flex justify-content-between align-items-center">
+        <h5 class="m-0 fw-bold"><span class="d-none d-sm-inline">🛰️</span> Sistema de Alerta Temprana Paxban</h5>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge bg-white text-success px-3 py-2">● Monitoreo Activo</span>
         </div>
     </div>
 
-    <div id="map"></div>
+    <div class="dashboard-wrapper d-flex flex-md-row">
+        <!-- Barra Lateral Izquierda -->
+        <aside class="sidebar">
+            <div class="nav-section-title">Navegación Principal</div>
+            <button class="btn-nav active" id="btn-map" onclick="showView('map')">
+                <span>📍</span> Mapa en Tiempo Real
+            </button>
+            <button class="btn-nav" id="btn-gallery" onclick="showView('gallery')">
+                <span>📂</span> Galería de Reportes
+            </button>
+        </aside>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
+        <!-- Contenido Principal -->
+        <main class="flex-grow-1 position-relative bg-white">
+            <div id="map"></div>
+            <div id="iframe-container" class="d-none">
+                <iframe src="reportes.html" id="gallery-frame"></iframe>
+            </div>
+        </main>
+    </div>
+
     <script>
-        // Inicializar mapa centrado en Petén, Guatemala
-        var map = L.map('map').setView([17.5, -90.0], 9);
+        function showView(view) {
+            const mapDiv = document.getElementById('map');
+            const galleryDiv = document.getElementById('iframe-container');
+            const btnMap = document.getElementById('btn-map');
+            const btnGallery = document.getElementById('btn-gallery');
+            
+            btnMap.classList.remove('active');
+            btnGallery.classList.remove('active');
+            
+            if (view === 'map') {
+                mapDiv.classList.remove('d-none');
+                galleryDiv.classList.add('d-none');
+                btnMap.classList.add('active');
+                // Forzar re-render de Leaflet al volver al mapa
+                setTimeout(() => { map.invalidateSize(); }, 100);
+            } else {
+                mapDiv.classList.add('d-none');
+                galleryDiv.classList.remove('d-none');
+                btnGallery.classList.add('active');
+            }
+        }
+    </script>
 
-        // Capas Base
-        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        });
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <script>
+        // Inicializar mapa centrado en Paxbán
+        const map = L.map('map').setView([17.7, -90.15], 9);
 
-        var natGeo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri &mdash; National Geographic, Esri, DeLorme, NAVTEQ, UNEP-WCMC, USGS, NASA, ESA, METI, NRCAN, GEBCO, NOAA, iPC',
+        // Capas base
+        const natgeo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; National Geographic',
             maxZoom: 16
         }).addTo(map);
 
-        var satelital = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
         });
 
-        var incendiosLayer = L.layerGroup().addTo(map);
-        var concesionesLayer = L.layerGroup().addTo(map);
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles © Esri'
+        });
 
-        // Control de Capas (Posicionado a la izquierda para no tapar el panel de filtros)
-        L.control.layers({
-            "National Geographic": natGeo,
-            "Satélite": satelital,
-            "OpenStreetMap": osm
-        }, {
-            "Incendios": incendiosLayer,
-        }, { position: 'topleft' }).addTo(map);
+        const baseMaps = {
+            "National Geographic": natgeo,
+            "Mapa Callejero": osm,
+            "Satélite": satellite
+        };
 
-        var datosIncendios = [];
+        L.control.layers(baseMaps).addTo(map);
 
-        // Cargar Concesiones (GeoJSON)
-        fetch('concesiones1.geojson')
+        let paxbanFeature = null;
+        let activeLine = null;
+
+        // Cargar Polígonos de Concesiones
+        fetch('concesiones1.geojson?t=' + new Date().getTime())
             .then(response => response.json())
             .then(data => {
+                // Buscamos el polígono de Paxbán de forma más robusta
+                paxbanFeature = data.features.find(f => {
+                    const name = f.properties.Name || "";
+                    return name.toLowerCase().includes("paxban") || name.toLowerCase().includes("paxbán");
+                });
+                
+                if (paxbanFeature) console.log("✅ Polígono de Paxbán cargado correctamente.");
+                else console.warn("⚠️ No se encontró el polígono 'Paxbán' en el GeoJSON.");
+
                 L.geoJSON(data, {
+                    filter: function(feature) {
+                        // Solo mostrar el polígono de Paxbán
+                        return feature.properties.Name && feature.properties.Name.includes("Paxbán");
+                    },
                     style: function(feature) {
-                        return { color: "#2e7d32", weight: 2, fillOpacity: 0.1 };
+                        return {
+                            color: "#198754",
+                            weight: 3,
+                            fillOpacity: 0.05
+                        };
                     },
                     onEachFeature: function(feature, layer) {
-                        if (feature.properties && feature.properties.Name) {
+                        if (feature.properties.Name) {
                             layer.bindPopup("<b>Concesión:</b> " + feature.properties.Name);
                         }
                     }
-                }).addTo(concesionesLayer);
-            })
-            .catch(err => console.error("Error cargando concesiones:", err));
-
-        // Cargar Incendios
-        fetch('incendios.json')
-            .then(response => {
-                var lastMod = response.headers.get('Last-Modified');
-                if (lastMod) {
-                    var date = new Date(lastMod);
-                    document.getElementById('info-actualizacion').innerText = "Última actualización: " + date.toLocaleString('es-GT');
-                } else {
-                    document.getElementById('info-actualizacion').innerText = "Última actualización: Reciente";
-                }
-                return response.json();
-            })
-            .then(data => {
-                datosIncendios = data;
-                
-                // Auto-centrar el mapa si hay datos
-                if (datosIncendios.length > 0) {
-                    var bounds = L.latLngBounds(datosIncendios.map(p => [p.lat, p.lon]));
-                    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
-                }
-
-                actualizarMapa(); // Aplicar filtro inicial (24h)
-            })
-            .catch(err => {
-                console.error("Error cargando incendios:", err);
-                document.getElementById('info-actualizacion').innerHTML = "<span style='color:red'>Error cargando datos.</span>";
+                }).addTo(map);
             });
 
-        function actualizarMapa() {
-            incendiosLayer.clearLayers();
-            
-            var horasFiltro = parseInt(document.getElementById('timeFilter').value);
-            
-            var mostrarModis = document.getElementById('satModis').checked;
-            var mostrarViirsSnpp = document.getElementById('satViirsSnpp').checked;
-            var mostrarViirsNoaa = document.getElementById('satViirsNoaa').checked;
-            
-            var visibles = 0;
-
-            datosIncendios.forEach(punto => {
-                // Filtrar por tiempo y por satélite seleccionado
-                var satValido = (punto.sat === "MODIS_NRT" && mostrarModis) || (punto.sat === "VIIRS_SNPP_NRT" && mostrarViirsSnpp) || (punto.sat === "VIIRS_NOAA20_NRT" && mostrarViirsNoaa);
-
-                if (punto.horas <= horasFiltro && satValido) {
-                    visibles++;
-                    
-                    var color = punto.color;
-                    
-                    var circle = L.circleMarker([punto.lat, punto.lon], {
-                        radius: 6,
-                        fillColor: color,
-                        color: "#000",
+        // Cargar Puntos de Incendio
+        fetch('incendios.json?t=' + new Date().getTime())
+            .then(response => response.json())
+            .then(puntos => {
+                console.log("🔥 Puntos de calor cargados:", puntos.length);
+                
+                puntos.forEach(p => {
+                    const marker = L.circleMarker([p.lat, p.lon], {
+                        radius: 8,
+                        fillColor: p.color,
+                        color: "#fff",
                         weight: 1,
                         opacity: 1,
                         fillOpacity: 0.8
+                    }).addTo(map);
+
+                    let popupContent = `
+                        <div style="font-family: sans-serif; min-width: 150px;">
+                            <h6 style="margin:0; color:${p.color === 'red' ? 'red' : 'orange'};">🔥 Foco Detectado</h6>
+                            <hr style="margin:5px 0;">
+                            <b>Satélite:</b> ${p.sat}<br>
+                            <b>Fecha:</b> ${p.fecha}<br>
+                            <b>Ubicación:</b> ${p.concesion}<br>
+                            ${p.dist_info ? `<b>Distancia:</b> ${p.dist_info}<br>` : ''}
+                            ${p.dist_campamento !== 'N/A' ? `<b>Ref:</b> ${p.dist_campamento}` : ''}
+                        </div>
+                    `;
+                    marker.bindPopup(popupContent);
+
+                    // Manejar clic en el marcador
+                    marker.on('click', function(e) {
+                        // Evitar que el clic llegue al mapa base (previene zooms accidentales)
+                        L.DomEvent.stopPropagation(e);
+
+                        if (typeof turf === 'undefined') {
+                            console.error("❌ Turf.js no se ha cargado. La línea de distancia no funcionará.");
+                            return;
+                        }
+
+                        let esMismoPunto = false;
+
+                        // 1. Limpiar línea anterior y verificar si es el mismo punto (Toggle)
+                        if (activeLine) {
+                            const currentCoords = activeLine.getLatLngs();
+                            esMismoPunto = (currentCoords[0].lat === p.lat && currentCoords[0].lng === p.lon);
+                            
+                            map.removeLayer(activeLine);
+                            activeLine = null;
+                        }
+
+                        if (esMismoPunto) {
+                            map.closePopup();
+                            return; // Salimos (Toggle Off)
+                        }
+
+                        // 2. Trazar nueva línea negra si el polígono de Paxbán está cargado
+                        if (paxbanFeature) {
+                            try {
+                                const from = turf.point([p.lon, p.lat]);
+                                const line = turf.polygonToLine(paxbanFeature);
+                                const snapped = turf.nearestPointOnLine(line, from);
+                                
+                                if (snapped && snapped.geometry) {
+                                    // Calcular distancia y formatear con separador de miles
+                                    const distRaw = turf.distance(from, snapped, {units: 'kilometers'}) * 1000;
+                                    const distFormatted = Math.round(distRaw).toLocaleString('en-US');
+                                    
+                                    activeLine = L.polyline([
+                                        [p.lat, p.lon],
+                                        [snapped.geometry.coordinates[1], snapped.geometry.coordinates[0]]
+                                    ], {
+                                        color: '#000000', // Línea Negra
+                                        weight: 2,
+                                        dashArray: '5, 5',
+                                        opacity: 0.9
+                                    });
+
+                                    // Añadir etiqueta de distancia en el centro de la línea
+                                    activeLine.bindTooltip(`${distFormatted} m`, {
+                                        permanent: true,
+                                        direction: 'center',
+                                        className: 'dist-label'
+                                    });
+
+                                    activeLine.addTo(map);
+                                }
+                            } catch (err) {
+                                console.error("Error al calcular distancia visual:", err);
+                            }
+                        }
+
+                        // 3. Centrar mapa y abrir información
+                        map.panTo([p.lat, p.lon]);
+                        marker.openPopup();
                     });
 
-                    var popupContent = `
-                        <b>🔥 Punto de Calor Detectado</b><br>
-                        <b>GTM:</b> ${punto.gtm}<br>
-                        <b>Lat/Lon:</b> ${punto.lat.toFixed(4)}, ${punto.lon.toFixed(4)}<br>
-                        <b>Fecha:</b> ${punto.fecha}<br>
-                        <b>Antigüedad:</b> ${punto.horas.toFixed(1)} horas<br>
-                        <b>Ubicación:</b> ${punto.concesion}<br>
-                        <b>Satélite:</b> ${punto.sat}
-                    `;
-
-                    circle.bindPopup(popupContent);
-                    incendiosLayer.addLayer(circle);
-                }
+                });
             });
-        }
+
+        // Leyenda de colores
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = function (map) {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML += '<b>Antigüedad</b><br>';
+            div.innerHTML += '<i style="background: red"></i> < 24h<br>';
+            div.innerHTML += '<i style="background: orange"></i> 24h - 48h<br>';
+            div.innerHTML += '<i style="background: yellow"></i> 48h - 72h<br>';
+            return div;
+        };
+        legend.addTo(map);
     </script>
 </body>
 </html>

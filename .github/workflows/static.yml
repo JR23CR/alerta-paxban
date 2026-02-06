@@ -4,7 +4,6 @@ on:
     branches: ["main"]
   schedule:
     - cron: '0 * * * *'
-    - cron: '0 22 * * *' # Reporte diario 4:00 PM Guatemala (22:00 UTC)
   workflow_dispatch:
     inputs:
       action_type:
@@ -56,14 +55,28 @@ jobs:
       - name: Configurar Destinatarios y Modo
         run: |
           # Definir listas de correos
-          EMAILS_ALERTAS="coradojose952@gmail.com, forestal@gibor.com, regencia@gibor.com"
+          EMAILS_ALERTAS="coradojose952@gmail.com"
           EMAIL_MANUAL="coradojose952@gmail.com"
           
           # Capturar input manual
           ACTION_TYPE="${{ github.event.inputs.action_type }}"
           
+          # Obtener la hora actual en Guatemala (UTC-6)
+          HORA_GT=$(date -u -d "6 hours ago" +"%H")
+
           # Lógica de selección según el evento que disparó el flujo
-          if [[ "$ACTION_TYPE" == "reporte_mensual" ]]; then
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
+            echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
+            if [[ "$HORA_GT" == "16" ]]; then
+              echo "Modo: Reporte Diario Programado (4 PM)"
+              echo "FORCE_REPORT=true" >> $GITHUB_ENV
+              echo "REPORT_REASON=automáticamente (Reporte Diario 4 PM)" >> $GITHUB_ENV
+            else
+              echo "Modo: Monitoreo Horario (Solo Alertas)"
+              echo "FORCE_REPORT=false" >> $GITHUB_ENV
+            fi
+          elif [[ "$ACTION_TYPE" == "reporte_mensual" ]]; then
             echo "Modo: Generación de Reporte Mensual"
             echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
             echo "ACTION_TYPE=reporte_mensual" >> $GITHUB_ENV
@@ -89,18 +102,12 @@ jobs:
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=true" >> $GITHUB_ENV
             echo "REPORT_REASON=por solicitud manual" >> $GITHUB_ENV
-          elif [[ "${{ github.event.schedule }}" == "0 22 * * *" ]]; then
-            echo "Modo: Reporte Diario 4:00 PM (A todos)"
-            echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
-            echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
-            echo "FORCE_REPORT=true" >> $GITHUB_ENV
-            echo "REPORT_REASON=automáticamente (programado)" >> $GITHUB_ENV
           else
-            echo "Modo: Monitoreo Automático (A todos, solo si hay fuego)"
+            echo "Modo: Monitoreo por Push (No se envía reporte, solo si hay fuego)"
             echo "RECIPIENT_EMAIL=$EMAILS_ALERTAS" >> $GITHUB_ENV
             echo "ACTION_TYPE=monitor" >> $GITHUB_ENV
             echo "FORCE_REPORT=false" >> $GITHUB_ENV
-            echo "REPORT_REASON=por detección de alerta" >> $GITHUB_ENV
+            echo "REPORT_REASON=por detección de alerta en push" >> $GITHUB_ENV
           fi
 
       - name: Ejecutar Detector de Incendios
@@ -122,7 +129,7 @@ jobs:
           git config --global user.email "bot@paxban.com"
           
           # Agregar archivos generados si existen
-          [ -d "2.4" ] && git add 2.4/
+          [ -d "mapa_reporte_diario" ] && git add mapa_reporte_diario/
           [ -d "bitacora" ] && git add bitacora/
           [ -d "descargas" ] && git add descargas/
           [ -f "reportes.html" ] && git add reportes.html

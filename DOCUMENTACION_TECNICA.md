@@ -1,7 +1,7 @@
-# Documentación Técnica: Sistema de Alerta Paxbán
+# Documentación Técnica: Sistema de Alerta Temprana Paxban
 
 ## 1. Visión General
-El **Sistema de Alerta Paxbán** es una solución tecnológica automatizada diseñada para la vigilancia continua, detección temprana y reporte de incendios forestales en la Concesión Industrial Paxbán y áreas aledañas en Petén, Guatemala. Integra datos satelitales en tiempo real con análisis geoespacial preciso.
+El **Sistema de Alerta Temprana Paxban** es una solución tecnológica automatizada diseñada para la vigilancia continua, detección temprana y reporte de incendios forestales en la Concesión Industrial Paxbán y áreas aledañas en Petén, Guatemala. Integra datos satelitales en tiempo real con análisis geoespacial preciso.
 
 ## 2. Arquitectura del Sistema
 El software opera bajo una arquitectura **Serverless** (sin servidor dedicado), aprovechando la infraestructura de nube de GitHub.

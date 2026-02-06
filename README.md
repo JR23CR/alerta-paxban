@@ -1,10 +1,10 @@
-# Sistema de Alerta Temprana y Monitoreo de Incendios Forestales - Paxbán
+# Sistema de Alerta Temprana Paxban
 
 > **[📂 CLIC AQUÍ PARA IR A LA GALERÍA DE REPORTES Y DESCARGAS](reportes.html)**
 
 ## Descripción General
 
-El **Sistema de Alerta Paxbán** es una solución tecnológica automatizada diseñada para la vigilancia continua, detección temprana y reporte de incendios forestales en la Concesión Industrial Paxbán y sus áreas de influencia en la Reserva de la Biosfera Maya, Petén, Guatemala.
+El **Sistema de Alerta Temprana Paxban** es una solución tecnológica automatizada diseñada para la vigilancia continua, detección temprana y reporte de incendios forestales en la Concesión Industrial Paxbán y sus áreas de influencia en la Reserva de la Biosfera Maya, Petén, Guatemala.
 
 Este software opera en la nube integrando datos satelitales en tiempo real con análisis geoespacial preciso para proporcionar a los gestores forestales información crítica para la toma de decisiones y la respuesta rápida ante amenazas de fuego.
 
