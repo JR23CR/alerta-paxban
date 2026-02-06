@@ -370,7 +370,8 @@ def generar_galeria_html():
         if reportes_mensuales:
             html += """<h3 class="text-secondary mt-4 border-bottom pb-2">📦 Reportes Mensuales (Descarga Completa)</h3><div class="row row-cols-1 row-cols-md-3 g-4 mb-5">"""
             for r in reportes_mensuales:
-                html += f"""<div class="col"><div class="card h-100 shadow-sm border-success"><div class="card-body text-center"><h5 class="card-title text-success">📅 {r['nombre']}</h5><p class="card-text small text-muted">Incluye: Reportes diarios, Incendios y Word.</p><a href="{r['url']}" class="btn btn-success w-100" download>⬇️ Descargar ZIP</a></div></div></div>"""
+                # Agregamos ?t=timestamp para evitar que el navegador use una versión vieja del ZIP en caché
+                html += f"""<div class="col"><div class="card h-100 shadow-sm border-success"><div class="card-body text-center"><h5 class="card-title text-success">📅 {r['nombre']}</h5><p class="card-text small text-muted">Incluye: Reportes diarios, Incendios y Word.</p><a href="{r['url']}?t={int(time.time())}" class="btn btn-success w-100" download>⬇️ Descargar ZIP</a></div></div></div>"""
             html += "</div>"
 
         # Sección Mapas Diarios
@@ -875,6 +876,11 @@ def main():
 
         if not puntos:
             print("⚠️ Advertencia: No se encontraron datos de incendios en el área seleccionada.")
+
+    # Guardar Metadatos de Actualización (Hora)
+    fecha_actual = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
+    with open('metadata.json', 'w') as f:
+        json.dump({"last_updated": f"{fecha_actual} (Hora GT)"}, f)
 
     # Guardar JSON para la web
     with open('incendios.json', 'w') as f: json.dump(puntos, f)

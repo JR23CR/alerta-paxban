@@ -134,6 +134,7 @@
     <div class="header-dash d-flex justify-content-between align-items-center">
         <h5 class="m-0 fw-bold"><span class="d-none d-sm-inline">🛰️</span> Sistema de Alerta Temprana Paxban</h5>
         <div class="d-flex align-items-center gap-3">
+            <span class="text-white small d-none d-md-block" id="last-updated-label" style="opacity: 0.9; font-size: 0.85rem;">Actualizando...</span>
             <span class="badge bg-white text-success px-3 py-2">● Monitoreo Activo</span>
         </div>
     </div>
@@ -399,6 +400,14 @@
             return div;
         };
         filterControl.addTo(map);
+
+        // Cargar hora de última actualización
+        fetch('metadata.json?t=' + new Date().getTime())
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('last-updated-label').innerText = "Última actualización: " + data.last_updated;
+            })
+            .catch(err => console.log("Esperando datos de actualización..."));
     </script>
 </body>
 </html>
