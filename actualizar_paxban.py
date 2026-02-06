@@ -316,6 +316,9 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
                             # Agregar punto (Color rojo para visibilidad en reporte semanal)
                             puntos.append({"lat": float(d[0]), "lon": float(d[1]), "color": "red"})
                         except: pass
+            except requests.exceptions.ConnectionError:
+                print("⚠️ Error de conexión detectado. Deteniendo descarga histórica para evitar bloqueos.")
+                return puntos
             except: pass
             time.sleep(0.1) # Evitar saturación
     return puntos
@@ -886,7 +889,7 @@ def main():
             try:
                 print(f"⬇️ Descargando datos de {sat}...")
                 url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-94,13.5,-88,20/3"
-                res = session.get(url, headers=headers, timeout=60)
+                res = session.get(url, headers=headers, timeout=20)
                 if res.status_code == 200:
                     lines = res.text.strip().split('\n')[1:]
                     for line in lines:
@@ -933,6 +936,10 @@ def main():
                                 "dist_campamento": dist_campamento_str
                             })
                         except: pass
+            except requests.exceptions.ConnectionError:
+                print(f"⛔ Error de conexión con {sat}. Internet inestable o servidor caído.")
+                print("⚠️ Saltando satélites restantes para evitar demoras innecesarias.")
+                break
             except Exception as e:
                 print(f"⚠️ Error descargando {sat}: {e}", file=sys.stderr)
 
