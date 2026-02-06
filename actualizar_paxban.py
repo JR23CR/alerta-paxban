@@ -453,50 +453,95 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
         style.font.name = 'Arial'
         style.font.size = Pt(11)
 
-        # Título Principal
-        title = doc.add_heading('SISTEMA DE ALERTA TEMPRANA PAXBAN', 0)
-        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # --- ENCABEZADO ---
+        section = doc.sections[0]
+        header = section.header
+        header_para = header.paragraphs[0]
+        header_para.text = "SISTEMA DE ALERTA TEMPRANA PAXBAN"
+        header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        header_para.style.font.bold = True
+        header_para.style.font.size = Pt(14)
+        header_para.style.font.color.rgb = RGBColor(0, 100, 0) # Verde oscuro
 
-        # Mes del Informe
-        subtitle = doc.add_heading(f'INFORME MENSUAL: {mes_nombre.upper()} {anio}', 1)
-        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        # --- LOGO (Derecha) ---
+        try:
+            if os.path.exists('logo (2).png'):
+                logo_para = doc.add_paragraph()
+                logo_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                run = logo_para.add_run()
+                run.add_picture('logo (2).png', width=Inches(1.5))
+        except Exception: pass
 
-        # Introducción Técnica
+        # --- TÍTULOS CENTRADOS ---
+        p_titles = doc.add_paragraph()
+        p_titles.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p_titles.add_run("GIBOR, S.A.\n")
+        run.bold = True
+        run.font.size = Pt(16)
+        
+        run = p_titles.add_run("UNIDAD DE MANEJO PAXBAN\n")
+        run.bold = True
+        run.font.size = Pt(14)
+        
+        run = p_titles.add_run(f"\nINFORME MENSUAL: {mes_nombre.upper()} {anio}")
+        run.bold = True
+        run.font.size = Pt(12)
+
+        doc.add_paragraph() # Espacio
+
+        # --- CONTEXTO NORMATIVO ---
+        p_context = doc.add_paragraph()
+        p_context.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        run = p_context.add_run("CONTEXTO NORMATIVO Y OPERATIVO\n")
+        run.bold = True
+        p_context.add_run(
+            "Este informe responde al Programa de Planificación, Monitoreo y Evaluación, principalmente al inciso 2.4: "
+            "\"Protocolo para el seguimiento de punto de calor en la zona\", durante la temporada crítica. "
+            "El sistema garantiza una vigilancia ininterrumpida sobre el patrimonio natural bajo custodia."
+        )
+
+        # --- UBICACIÓN Y ALCANCE ---
+        p_loc = doc.add_paragraph()
+        p_loc.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        run = p_loc.add_run("ALCANCE GEOGRÁFICO\n")
+        run.bold = True
+        p_loc.add_run(
+            "Área Monitoreada: 65,755 hectáreas (todo el polígono de Paxbán) las 24 horas.\n"
+            "Ubicación: Reserva de la Biosfera Maya, Zona de Usos Múltiples, Petén, Guatemala."
+        )
+
+        # --- INTRODUCCIÓN TÉCNICA ---
+        doc.add_heading('1. Introducción Técnica', level=1)
         intro_text = (
             "El presente documento constituye el informe técnico mensual generado por el Sistema de Alerta Temprana Paxbán, "
             "una herramienta tecnológica de vanguardia implementada para la vigilancia permanente y detección oportuna de "
-            "anomalías térmicas en la Concesión Industrial Paxbán, ubicada en la Zona de Uso Múltiple de la Reserva de la "
-            "Biosfera Maya (RBM). Este software opera de manera automatizada en la nube, integrando datos satelitales de "
-            "alta resolución en tiempo real con análisis geoespacial preciso, con el objetivo primordial de fortalecer las "
-            "capacidades de respuesta rápida y proporcionar información crítica para la gestión forestal sostenible y la "
-            "protección de la biodiversidad, en cumplimiento con los lineamientos del Consejo Nacional de Áreas Protegidas (CONAP)."
+            "anomalías térmicas. Este software opera de manera automatizada en la nube, integrando datos satelitales de "
+            "alta resolución en tiempo real con análisis geoespacial preciso.\n\n"
+            "El objetivo primordial es fortalecer las capacidades de respuesta rápida y proporcionar información crítica "
+            "para la gestión forestal sostenible y la protección de la biodiversidad, en estricto cumplimiento con los "
+            "lineamientos técnicos del Consejo Nacional de Áreas Protegidas (CONAP) y los estándares de certificación FSC."
         )
-        p_intro = doc.add_paragraph(intro_text)
-        p_intro.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        doc.add_paragraph(intro_text).alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-        # Sección de Metodología
-        doc.add_heading('Metodología de Monitoreo', 2)
+        # --- METODOLOGÍA ---
+        doc.add_heading('2. Metodología y Tecnología', level=1)
         metodo_text = (
-            "La metodología empleada se basa en el monitoreo constante de los sensores MODIS (Moderate Resolution Imaging "
+            "La arquitectura del sistema se basa en la integración de múltiples capas de tecnología para garantizar la precisión:\n\n"
+            "A. Sensores Satelitales: Se realiza un monitoreo constante mediante los sensores MODIS (Moderate Resolution Imaging "
             "Spectroradiometer) y VIIRS (Visible Infrared Imaging Radiometer Suite) a través de la plataforma NASA FIRMS. "
-            "El sistema realiza un filtrado geoespacial automatizado para identificar focos de calor dentro de los límites "
-            "oficiales de la concesión y en su zona de amortiguamiento perimetral, permitiendo una clasificación de alertas "
-            "por nivel de riesgo y proximidad a campamentos de control."
+            "Estos sensores permiten la detección de anomalías térmicas con una resolución espacial de hasta 375 metros.\n\n"
+            "B. Procesamiento Geoespacial: El sistema ejecuta algoritmos de intersección espacial utilizando librerías avanzadas "
+            "(Shapely, Pyproj). Esto permite discriminar automáticamente entre incendios dentro de la concesión, en la zona de "
+            "amortiguamiento (buffer de 10 km) y eventos externos.\n\n"
+            "C. Proyección Cartográfica: Para facilitar la navegación de las cuadrillas de campo, todas las coordenadas geográficas (WGS84) "
+            "son transformadas automáticamente al sistema GTM (Guatemala Transversal Mercator), estándar oficial para la cartografía nacional."
         )
-        p_metodo = doc.add_paragraph(metodo_text)
-        p_metodo.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        doc.add_paragraph(metodo_text).alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-        # Sección de Objetivos
-        doc.add_heading('Objetivos del Sistema', 2)
-        objs = doc.add_paragraph("• Detectar de forma temprana focos de incendio forestal para minimizar el impacto ambiental.\n"
-                                 "• Proveer coordenadas precisas en formato GTM para facilitar el despliegue de cuadrillas terrestres.\n"
-                                 "• Mantener un registro histórico auditable de la actividad térmica en la región.")
-        objs.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-
-        # Resumen de Detecciones
-        doc.add_heading('Resultados del Periodo', 2)
+        # --- RESULTADOS ---
+        doc.add_heading('3. Resultados del Monitoreo Mensual', level=1)
         if fires_list:
-            resumen_p = doc.add_paragraph(f"Durante el mes de {mes_nombre} de {anio}, se identificaron {len(fires_list)} puntos de calor dentro del área de interés:")
+            resumen_p = doc.add_paragraph(f"Durante el mes de {mes_nombre} de {anio}, el sistema registró un total de {len(fires_list)} puntos de calor dentro del área de interés. A continuación, se detalla la bitácora de detecciones:")
             resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             
             for i, fire in enumerate(fires_list, 1):
@@ -505,40 +550,73 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 ref = fire.get('dist_campamento', 'N/A')
                 gtm = fire.get('gtm', 'N/A')
                 fecha = fire.get('fecha', 'N/A')
-                p.add_run(f"Punto de detección térmica No. {i}: ").bold = True
-                p.add_run(f"Identificado el {fecha}. Referencia de ubicación: {ref}. Coordenadas proyectadas GTM: {gtm}.")
+                satelite = fire.get('sat', 'Desconocido')
+                
+                run = p.add_run(f"Evento No. {i} - {fecha}\n")
+                run.bold = True
+                run.font.color.rgb = RGBColor(200, 0, 0)
+                
+                p.add_run(f"Satélite: {satelite}\n")
+                p.add_run(f"Ubicación Referencial: {ref}\n")
+                p.add_run(f"Coordenadas GTM: {gtm}\n")
                 
                 # Generar e insertar imagen enfocada para este punto
                 if concesiones:
-                    img_focused = generar_mapa_imagen([fire], concesiones, center_point=(fire['lon'], fire['lat']), buffer=0.08)
-                    if img_focused:
-                        img_stream = BytesIO(img_focused)
-                        doc.add_picture(img_stream, width=Inches(4.5))
-                        doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    try:
+                        img_focused = generar_mapa_imagen([fire], concesiones, center_point=(fire['lon'], fire['lat']), buffer=0.08)
+                        if img_focused:
+                            img_stream = BytesIO(img_focused)
+                            doc.add_picture(img_stream, width=Inches(4.0))
+                            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    except: pass
                 
-                doc.add_paragraph("") # Espacio entre puntos
+                doc.add_paragraph("-" * 50)
         else:
             resumen_p = doc.add_paragraph(
-                f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido de 24 horas diarias. "
-                f"Tras el análisis de los datos satelitales procesados, se informa que no se detectaron anomalías térmicas ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán."
+                f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido. "
+                f"Tras el análisis exhaustivo de los datos satelitales procesados, se informa oficialmente que NO se detectaron anomalías térmicas "
+                f"ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán.\n\n"
+                "Este resultado indica una estabilidad en la cobertura forestal y la efectividad de las medidas de prevención implementadas en la unidad de manejo."
             )
             resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-        # Inserción de Mapas (Máximo 4)
+        # --- ANEXO GRÁFICO ---
         if map_images:
             doc.add_page_break()
-            doc.add_heading('Mapas de Situación Mensual', 2).alignment = WD_ALIGN_PARAGRAPH.CENTER
+            doc.add_heading('4. Anexo Gráfico: Mapas de Situación', level=1)
+            doc.add_paragraph("A continuación se presentan los mapas diarios generados durante el periodo, ilustrando la cobertura de monitoreo sobre la región de Petén.").alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            
             for img_path in map_images[:4]:
                 if os.path.exists(img_path):
-                    doc.add_picture(img_path, width=Inches(5.5))
-                    doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p = doc.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    run = p.add_run()
+                    run.add_picture(img_path, width=Inches(6.0))
+                    fecha_mapa = os.path.basename(img_path).replace("Mapa_Calor_", "").replace(".png", "")
+                    caption = doc.add_paragraph(f"Mapa de Calor - {fecha_mapa}")
+                    caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    caption.style.font.size = Pt(9)
+                    caption.style.font.italic = True
+
+        # --- CONCLUSIONES ---
+        doc.add_heading('5. Conclusiones y Recomendaciones', level=1)
+        concl_text = (
+            "El Sistema de Alerta Temprana ha demostrado ser una herramienta eficaz para la gestión de riesgos en la Unidad de Manejo Paxbán. "
+            "La integración de datos en tiempo real permite reducir significativamente los tiempos de respuesta ante conatos de incendio.\n\n"
+            "Se recomienda:\n"
+            "1. Continuar con la verificación de campo de cualquier alerta generada, incluso aquellas en la zona de amortiguamiento.\n"
+            "2. Mantener actualizados los equipos de comunicación para la recepción de las alertas vía Telegram y Correo Electrónico.\n"
+            "3. Utilizar las coordenadas GTM proporcionadas en este informe para la planificación de rutas de acceso en caso de emergencia."
+        )
+        doc.add_paragraph(concl_text).alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
         # Firma Final
-        doc.add_paragraph("\n\n")
-        firma = doc.add_paragraph("Sistema de Alerta Temprana Paxban")
+        doc.add_paragraph("\n\n\n")
+        firma = doc.add_paragraph("__________________________\nSistema de Alerta Temprana Paxban")
         firma.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        firma_run = firma.add_run("\ndesarrollado por\nNery Jose Corado Ramírez\nMiembro de la CIF\nGIBOR, S.A")
+        firma_run = firma.add_run("\nDesarrollado por\nNery Jose Corado Ramírez\nMiembro de la CIF\nGIBOR, S.A")
         firma_run.italic = True
+        firma_run.font.size = Pt(10)
 
         doc.save(ruta_salida)
     except Exception as e:
