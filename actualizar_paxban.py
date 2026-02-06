@@ -270,10 +270,10 @@ def generar_galeria_html():
         for base_dir in ["mapa_reporte_diario", "2.4"]:
             if os.path.exists(base_dir):
                 for root, _, files in os.walk(base_dir):
-                for file in files:
-                    if file.endswith(".png"):
-                        url = os.path.join(root, file).replace(os.sep, '/')
-                        mapas.append({"url": url, "nombre": file, "fecha": file.replace("Mapa_Calor_", "").replace(".png", "")})
+                    for file in files:
+                        if file.endswith(".png"):
+                            url = os.path.join(root, file).replace(os.sep, '/')
+                            mapas.append({"url": url, "nombre": file, "fecha": file.replace("Mapa_Calor_", "").replace(".png", "")})
         
         mapas.sort(key=lambda x: x['fecha'], reverse=True)
         
@@ -379,9 +379,9 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1)
             minx, miny = transformer.transform(lon - buffer, lat - buffer)
             maxx, maxy = transformer.transform(lon + buffer, lat + buffer)
         else:
-            # Enfocar en la región de Petén (Vista general anterior)
-            minx, miny = transformer.transform(-91.3, 16.2)
-            maxx, maxy = transformer.transform(-89.0, 18.0)
+            # Enfocar en la región de Petén (Vista general amplia anterior)
+            minx, miny = transformer.transform(-91.5, 15.8)
+            maxx, maxy = transformer.transform(-89.0, 17.9)
 
         ax.set_xlim(minx, maxx); ax.set_ylim(miny, maxy)
         
@@ -506,7 +506,9 @@ def generar_reporte_mensual(concesiones):
     print("📦 Iniciando generación de Reporte Mensual...")
     try:
         fecha_dt = datetime.utcnow() - timedelta(hours=6)
-        anio, mes = fecha_dt.strftime("%Y"), fecha_dt.strftime("%m")
+        # Permitir especificar mes y año vía variables de entorno para reportes retroactivos
+        anio = os.environ.get("TARGET_YEAR") or fecha_dt.strftime("%Y")
+        mes = os.environ.get("TARGET_MONTH") or fecha_dt.strftime("%m")
         nombre_mes = MESES_ES.get(mes, mes)
         
         raiz = f"Reporte_{mes}_{anio}"

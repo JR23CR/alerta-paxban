@@ -17,6 +17,14 @@ on:
         - test_prealerta
         - test_monitoreo
         - reporte_mensual
+      target_month:
+        description: 'Mes para Reporte Mensual (MM, ej: 01)'
+        required: false
+        default: ''
+      target_year:
+        description: 'Año para Reporte Mensual (YYYY, ej: 2026)'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -120,6 +128,8 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TARGET_MONTH: ${{ github.event.inputs.target_month }}
+          TARGET_YEAR: ${{ github.event.inputs.target_year }}
         run: python actualizar_paxban.py
 
       - name: Guardar Reporte en Repositorio
