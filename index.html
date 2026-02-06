@@ -175,7 +175,14 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script>
+<<<<<<< HEAD
         // --- 1. CONFIGURACIÓN DE MAPAS CLÁSICOS ---
+=======
+        // Inicializar mapa centrado en PETEN
+        const map = L.map('map').setView([17.7, -90.15], 9);
+
+        // Capas base
+>>>>>>> b60013d2d14b0f31281fcf40588aa069cb797abf
         const natgeo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Tiles &copy; Esri &mdash; National Geographic',
             maxZoom: 16
