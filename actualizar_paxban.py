@@ -747,9 +747,9 @@ def main():
     # Guardar JSON para la web
     with open('incendios.json', 'w') as f: json.dump(puntos, f)
     
-    # Solo alertar sobre puntos detectados en las últimas 3 horas para evitar duplicados en ejecuciones horarias
-    alertas = [p for p in puntos if p['alerta'] and p['horas'] <= 3]
-    pre_alertas = [p for p in puntos if p.get('pre_alerta') and p['horas'] <= 3]
+    # Solo alertar sobre puntos detectados en las últimas 1.5 horas para evitar duplicados en ejecuciones horarias
+    alertas = [p for p in puntos if p['alerta'] and p['horas'] <= 1.5]
+    pre_alertas = [p for p in puntos if p.get('pre_alerta') and p['horas'] <= 1.5]
     force_report = os.environ.get("FORCE_REPORT", "false") == "true"
     
     # Generar mapa si es necesario
