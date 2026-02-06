@@ -5,6 +5,7 @@ import smtplib
 import shutil
 import traceback
 import math
+import time
 from datetime import datetime, timedelta
 from io import BytesIO
 from email.mime.multipart import MIMEMultipart
@@ -262,6 +263,26 @@ def guardar_bitacora(imagen_bytes, tipo, datos_puntos):
     with open(os.path.join(carpeta, f"{tipo}_{fecha_str}.json"), "w", encoding="utf-8") as f:
         json.dump(datos_puntos, f, indent=2)
 
+def limpiar_descargas_antiguas():
+    """Elimina carpetas de meses con formato numérico si existe el formato nombre."""
+    if not os.path.exists("descargas"): return
+    
+    print("🧹 Limpiando carpetas duplicadas en descargas...")
+    for anio in os.listdir("descargas"):
+        anio_path = os.path.join("descargas", anio)
+        if not os.path.isdir(anio_path): continue
+        
+        for item in os.listdir(anio_path):
+            # Si es carpeta numérica (ej: "1") y existe su par ("Enero"), borrar la numérica
+            if item.isdigit():
+                item_path = os.path.join(anio_path, item)
+                if os.path.isdir(item_path):
+                    mes_num = item.zfill(2)
+                    mes_nombre = MESES_ES.get(mes_num)
+                    if mes_nombre and os.path.exists(os.path.join(anio_path, mes_nombre)):
+                        print(f"🗑️ Borrando duplicado obsoleto: {item_path}")
+                        shutil.rmtree(item_path, ignore_errors=True)
+
 def generar_galeria_html():
     """Genera reportes.html."""
     try:
@@ -278,26 +299,49 @@ def generar_galeria_html():
         mapas.sort(key=lambda x: x['fecha'], reverse=True)
         
         # Buscar reportes mensuales (ZIPs)
-        reportes_mensuales = []
+        reportes_dict = {}
         if os.path.exists("descargas"):
             for root, _, files in os.walk("descargas"):
                 for file in files:
                     if file.endswith(".zip"):
+                        # --- FILTRO ANTI-DUPLICADOS ---
+                        # Si el archivo está en una carpeta numérica (ej: descargas/2026/1)
+                        # y existe la carpeta correcta (descargas/2026/Enero), lo ignoramos.
+                        try:
+                            folder_name = os.path.basename(root)
+                            if folder_name.isdigit():
+                                mes_nombre_check = MESES_ES.get(folder_name.zfill(2))
+                                parent_folder = os.path.dirname(root)
+                                if mes_nombre_check and os.path.exists(os.path.join(parent_folder, mes_nombre_check)):
+                                    continue 
+                        except: pass
+                        # ------------------------------
+
                         url = os.path.join(root, file).replace(os.sep, '/')
                         
                         # Intentar crear un nombre bonito para la tarjeta (Ej: "Enero 2026")
                         nombre_mostrar = file
+                        key = file
                         try:
                             # Formato esperado: Reporte_Mensual_01_2026.zip
                             parts = file.replace(".zip", "").split("_")
                             if len(parts) >= 4:
-                                mes_num = parts[2]
+                                # Forzar conversión a entero para asegurar formato 01, 02...
+                                mes_num = f"{int(parts[2]):02d}"
                                 anio = parts[3]
-                                nombre_mostrar = f"{mes_num} {anio}"
+                                mes_nombre = MESES_ES.get(mes_num, mes_num)
+                                nombre_mostrar = f"{mes_nombre} {anio}"
+                                key = f"{anio}-{mes_num}"
                         except: pass
                         
-                        reportes_mensuales.append({"url": url, "nombre": nombre_mostrar, "filename": file})
+                        # Evitar duplicados por mes (preferir nombre de archivo más largo ej: 01 vs 1)
+                        if key in reportes_dict:
+                            print(f"🔹 Unificando reporte duplicado: {file} se agrupa bajo {key}")
+                            
+                        if key not in reportes_dict or len(file) > len(reportes_dict[key]['filename']):
+                            reportes_dict[key] = {"url": url, "nombre": nombre_mostrar, "filename": file}
         
+        reportes_mensuales = list(reportes_dict.values())
         print(f"📦 Se encontraron {len(reportes_mensuales)} reportes mensuales.")
         # Ordenar por nombre de archivo original para mantener orden cronológico
         reportes_mensuales.sort(key=lambda x: x['filename'], reverse=True)
@@ -508,6 +552,7 @@ def generar_reporte_mensual(concesiones):
         # Permitir especificar mes y año vía variables de entorno para reportes retroactivos
         anio = os.environ.get("TARGET_YEAR") or fecha_dt.strftime("%Y")
         mes = os.environ.get("TARGET_MONTH") or fecha_dt.strftime("%m")
+        mes = mes.zfill(2) # Asegurar formato de 2 dígitos (01, 02...)
         nombre_mes = MESES_ES.get(mes, mes)
         
         raiz = f"Reporte_{mes}_{anio}"
@@ -648,7 +693,7 @@ def main():
     # --- LÓGICA DE PRUEBAS (SIMULACROS) ---
     if action_type.startswith("test_"):
         print(f"🧪 MODO PRUEBA ACTIVADO: {action_type}")
-        fecha_sim = datetime.utcnow().strftime("%Y-%m-%d %H%M")
+        fecha_sim = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
         
         if action_type == "test_incendio":
             # Punto DENTRO de Paxbán
@@ -734,9 +779,13 @@ def main():
                             horas = (datetime.utcnow() - dt).total_seconds() / 3600
                             color = "red" if horas <= 24 else "orange" if horas <= 48 else "yellow"
                             
+                            # Convertir a hora Guatemala (UTC-6)
+                            dt_gt = dt - timedelta(hours=6)
+                            fecha_gt = dt_gt.strftime("%d/%m/%Y %H:%M")
+                            
                             puntos.append({
                                 "lat": lat, "lon": lon, "color": color, "alerta": en_paxban, "pre_alerta": en_prealerta,
-                                "sat": sat, "fecha": f"{d[5]} {d[6]}", "horas": horas,
+                                "sat": sat, "fecha": f"{fecha_gt} (Hora GT)", "horas": horas,
                                 "concesion": concesion_nombre,
                                 "gtm": convertir_a_gtm(lon, lat),
                                 "dist_info": dist_info,
@@ -988,6 +1037,8 @@ def main():
         generar_reporte_mensual(concesiones)
 
     # Generar Galería SIEMPRE (Al final para incluir el reporte mensual si se generó)
+    limpiar_descargas_antiguas()
+    time.sleep(1) # Esperar un segundo para liberar bloqueos de archivos
     generar_galeria_html()
 
 if __name__ == "__main__":

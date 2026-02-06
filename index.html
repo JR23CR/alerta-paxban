@@ -110,6 +110,17 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
 
+        .filter-control {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border: 1px solid #eee;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #555;
+        }
+
         @media (max-width: 768px) {
             .dashboard-wrapper { flex-direction: column !important; }
             .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #dee2e6; padding: 15px; }
@@ -206,6 +217,8 @@
 
         let paxbanFeature = null;
         let activeLine = null;
+        var incendiosLayer = L.layerGroup().addTo(map);
+        var allIncendios = [];
 
         // --- 2. CARGAR PAXBAN COMO "FILTRO DE COLOR" ---
         fetch('concesiones1.geojson?t=' + new Date().getTime())
@@ -239,13 +252,16 @@
             })
             .catch(error => console.error("Error cargando el GeoJSON:", error));
 
-        // Cargar Puntos de Incendio
-        fetch('incendios.json?t=' + new Date().getTime())
-            .then(response => response.json())
-            .then(puntos => {
-                console.log("🔥 Puntos de calor cargados:", puntos.length);
-                
-                puntos.forEach(p => {
+        // Función para filtrar y mostrar puntos
+        window.filtrarPuntos = function(horas) {
+            if (activeLine) {
+                map.removeLayer(activeLine);
+                activeLine = null;
+            }
+            incendiosLayer.clearLayers();
+            
+            allIncendios.forEach(p => {
+                if (p.horas <= horas) {
                     const marker = L.circleMarker([p.lat, p.lon], {
                         radius: 8,
                         fillColor: p.color,
@@ -253,7 +269,7 @@
                         weight: 1,
                         opacity: 1,
                         fillOpacity: 0.8
-                    }).addTo(map);
+                    });
 
                     let popupContent = `
                         <div style="font-family: sans-serif; min-width: 150px;">
@@ -302,9 +318,19 @@
                                 const snapped = turf.nearestPointOnLine(line, from);
                                 
                                 if (snapped && snapped.geometry) {
-                                    // Calcular distancia y formatear con separador de miles
-                                    const distRaw = turf.distance(from, snapped, {units: 'kilometers'}) * 1000;
-                                    const distFormatted = Math.round(distRaw).toLocaleString('en-US');
+                                    // Priorizar la distancia oficial calculada en Python (GTM) para que coincida con el popup
+                                    let distLabel = "";
+                                    if (p.dist_info) {
+                                        const match = p.dist_info.match(/(\d+)/);
+                                        if (match) {
+                                            distLabel = parseInt(match[0]).toLocaleString('en-US') + " m";
+                                        }
+                                    }
+                                    
+                                    if (!distLabel) {
+                                        const distRaw = turf.distance(from, snapped, {units: 'kilometers'}) * 1000;
+                                        distLabel = Math.round(distRaw).toLocaleString('en-US') + " m";
+                                    }
                                     
                                     activeLine = L.polyline([
                                         [p.lat, p.lon],
@@ -317,7 +343,7 @@
                                     });
 
                                     // Añadir etiqueta de distancia en el centro de la línea
-                                    activeLine.bindTooltip(`${distFormatted} m`, {
+                                    activeLine.bindTooltip(distLabel, {
                                         permanent: true,
                                         direction: 'center',
                                         className: 'dist-label'
@@ -334,8 +360,19 @@
                         map.panTo([p.lat, p.lon]);
                         marker.openPopup();
                     });
+                    
+                    incendiosLayer.addLayer(marker);
+                }
+            });
+        };
 
-                });
+        // Cargar Puntos de Incendio
+        fetch('incendios.json?t=' + new Date().getTime())
+            .then(response => response.json())
+            .then(puntos => {
+                console.log("🔥 Puntos de calor cargados:", puntos.length);
+                allIncendios = puntos;
+                filtrarPuntos(72); // Mostrar todos por defecto (72h)
             });
 
         // Leyenda de colores
@@ -349,6 +386,19 @@
             return div;
         };
         legend.addTo(map);
+
+        // Control de Filtros
+        var filterControl = L.control({position: 'topright'});
+        filterControl.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'filter-control');
+            div.innerHTML = '<b>Filtrar por Antigüedad</b><br>' +
+                '<label><input type="radio" name="filtro_horas" value="24" onclick="filtrarPuntos(24)"> < 24h (Rojo)</label><br>' +
+                '<label><input type="radio" name="filtro_horas" value="48" onclick="filtrarPuntos(48)"> < 48h (Naranja)</label><br>' +
+                '<label><input type="radio" name="filtro_horas" value="72" onclick="filtrarPuntos(72)" checked> < 72h (Amarillo)</label>';
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+        };
+        filterControl.addTo(map);
     </script>
 </body>
 </html>

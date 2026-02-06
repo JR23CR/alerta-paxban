@@ -34,7 +34,7 @@ permissions:
 # Esto evita el error de "Multiple artifacts" y "In progress deployment"
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   monitor-and-deploy:
