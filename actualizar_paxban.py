@@ -318,6 +318,12 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
                     for line in lines:
                         try:
                             d = line.split(',')
+                            # --- FILTRO DE SEGURIDAD DE FECHA ---
+                            # Si la fecha del dato (columna 5) no es la que pedimos, lo ignoramos.
+                            # Esto evita que se cuelen datos de "hoy" en reportes pasados.
+                            if len(d) > 5 and d[5] != fecha_str:
+                                continue
+
                             # Agregar punto (Color rojo para visibilidad en reporte semanal)
                             puntos.append({"lat": float(d[0]), "lon": float(d[1]), "color": "red"})
                         except: pass
