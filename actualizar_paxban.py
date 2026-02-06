@@ -293,8 +293,7 @@ def generar_galeria_html():
                             if len(parts) >= 4:
                                 mes_num = parts[2]
                                 anio = parts[3]
-                                mes_nom = MESES_ES.get(mes_num, mes_num)
-                                nombre_mostrar = f"{mes_nom} {anio}"
+                                nombre_mostrar = f"{mes_num} {anio}"
                         except: pass
                         
                         reportes_mensuales.append({"url": url, "nombre": nombre_mostrar, "filename": file})
@@ -527,7 +526,10 @@ def generar_reporte_mensual(concesiones):
         
         for src in fuentes:
             if os.path.exists(src):
-                for f in os.listdir(src): shutil.copy2(os.path.join(src, f), os.path.join(raiz, "Reporte Diario"))
+                print(f"📂 Copiando mapas desde: {src}")
+                for f in os.listdir(src):
+                    if f.endswith(".png"):
+                        shutil.copy2(os.path.join(src, f), os.path.join(raiz, "Reporte Diario"))
 
         # Recolectar detalles de incendios y copiar imágenes
         fires_details = []
@@ -546,10 +548,13 @@ def generar_reporte_mensual(concesiones):
 
         # Recolectar los últimos 4 mapas diarios para el Word
         map_images_paths = []
-        src_diario_full = os.path.join("mapa_reporte_diario", anio, nombre_mes)
-        if os.path.exists(src_diario_full):
-            all_maps = sorted([os.path.join(src_diario_full, f) for f in os.listdir(src_diario_full) if f.endswith(".png")], reverse=True)
-            map_images_paths = all_maps[:4]
+        for src in fuentes:
+            if os.path.exists(src):
+                maps = [os.path.join(src, f) for f in os.listdir(src) if f.endswith(".png")]
+                map_images_paths.extend(maps)
+        
+        map_images_paths.sort(reverse=True)
+        map_images_paths = map_images_paths[:4]
 
         # Generar Word con el nuevo formato
         crear_informe_word(

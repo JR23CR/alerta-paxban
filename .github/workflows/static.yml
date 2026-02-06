@@ -140,6 +140,7 @@ jobs:
           
           # Agregar archivos generados si existen
           [ -d "mapa_reporte_diario" ] && git add mapa_reporte_diario/
+          [ -d "2.4" ] && git add 2.4/
           [ -d "bitacora" ] && git add bitacora/
           [ -d "descargas" ] && git add descargas/
           [ -f "reportes.html" ] && git add reportes.html
