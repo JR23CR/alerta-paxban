@@ -266,8 +266,10 @@ def generar_galeria_html():
     """Genera reportes.html."""
     try:
         mapas = []
-        if os.path.exists("mapa_reporte_diario"):
-            for root, _, files in os.walk("mapa_reporte_diario"):
+        # Escanear tanto la carpeta estándar como la carpeta '2.4' detectada
+        for base_dir in ["mapa_reporte_diario", "2.4"]:
+            if os.path.exists(base_dir):
+                for root, _, files in os.walk(base_dir):
                 for file in files:
                     if file.endswith(".png"):
                         url = os.path.join(root, file).replace(os.sep, '/')
@@ -376,15 +378,10 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1)
             lon, lat = center_point
             minx, miny = transformer.transform(lon - buffer, lat - buffer)
             maxx, maxy = transformer.transform(lon + buffer, lat + buffer)
-        elif paxban_poly:
-            # Enfocar automáticamente en el polígono de Paxbán
-            bounds = paxban_poly.bounds # (minx, miny, maxx, maxy)
-            margin = 0.05 # Margen de visualización
-            minx, miny = transformer.transform(bounds[0] - margin, bounds[1] - margin)
-            maxx, maxy = transformer.transform(bounds[2] + margin, bounds[3] + margin)
         else:
-            minx, miny = transformer.transform(-91.5, 15.8)
-            maxx, maxy = transformer.transform(-89.0, 17.9)
+            # Enfocar en la región de Petén (Vista general anterior)
+            minx, miny = transformer.transform(-91.3, 16.2)
+            maxx, maxy = transformer.transform(-89.0, 18.0)
 
         ax.set_xlim(minx, maxx); ax.set_ylim(miny, maxy)
         
@@ -520,10 +517,15 @@ def generar_reporte_mensual(concesiones):
         for d in ["Reporte Diario", "Incendios Detectados", "Informe de Puntos de Calor"]:
             os.makedirs(os.path.join(raiz, d), exist_ok=True)
             
-        # Copiar contenido mapa_reporte_diario
-        src_diario = os.path.join("mapa_reporte_diario", anio, nombre_mes)
-        if os.path.exists(src_diario):
-            for f in os.listdir(src_diario): shutil.copy2(os.path.join(src_diario, f), os.path.join(raiz, "Reporte Diario"))
+        # Copiar contenido de mapa_reporte_diario y también de '2.4' si existen para el mes
+        fuentes = [
+            os.path.join("mapa_reporte_diario", anio, nombre_mes),
+            os.path.join("2.4", anio, mes) # Formato numérico
+        ]
+        
+        for src in fuentes:
+            if os.path.exists(src):
+                for f in os.listdir(src): shutil.copy2(os.path.join(src, f), os.path.join(raiz, "Reporte Diario"))
 
         # Recolectar detalles de incendios y copiar imágenes
         fires_details = []
@@ -743,8 +745,9 @@ def main():
     # Guardar JSON para la web
     with open('incendios.json', 'w') as f: json.dump(puntos, f)
     
-    alertas = [p for p in puntos if p['alerta']]
-    pre_alertas = [p for p in puntos if p.get('pre_alerta')]
+    # Solo alertar sobre puntos detectados en las últimas 3 horas para evitar duplicados en ejecuciones horarias
+    alertas = [p for p in puntos if p['alerta'] and p['horas'] <= 3]
+    pre_alertas = [p for p in puntos if p.get('pre_alerta') and p['horas'] <= 3]
     force_report = os.environ.get("FORCE_REPORT", "false") == "true"
     
     # Generar mapa si es necesario

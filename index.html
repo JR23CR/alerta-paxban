@@ -99,6 +99,17 @@
             font-size: 11px;
         }
 
+        /* Estilo para la etiqueta de texto permanente en el centro del polígono */
+        .label-style {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #2e7d32;
+            color: #1b5e20;
+            font-weight: bold;
+            font-size: 12px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
         @media (max-width: 768px) {
             .dashboard-wrapper { flex-direction: column !important; }
             .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #dee2e6; padding: 15px; }
@@ -164,66 +175,72 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script>
-        // Inicializar mapa centrado en Paxbán
-        const map = L.map('map').setView([17.7, -90.15], 9);
-
-        // Capas base
+        // --- 1. CONFIGURACIÓN DE MAPAS CLÁSICOS ---
         const natgeo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
             attribution: 'Tiles &copy; Esri &mdash; National Geographic',
             maxZoom: 16
-        }).addTo(map);
+        });
+
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
+        });
 
         const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         });
 
-        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles © Esri'
-        });
-
         const baseMaps = {
             "National Geographic": natgeo,
-            "Mapa Callejero": osm,
-            "Satélite": satellite
+            "Satélite": satellite,
+            "Mapa Callejero": osm
         };
+
+        const map = L.map('map', {
+            center: [17.7, -90.15],
+            zoom: 11,
+            layers: [natgeo] // National Geographic por defecto
+        });
 
         L.control.layers(baseMaps).addTo(map);
 
         let paxbanFeature = null;
         let activeLine = null;
 
-        // Cargar Polígonos de Concesiones
+        // --- 2. CARGAR PAXBAN COMO "FILTRO DE COLOR" ---
         fetch('concesiones1.geojson?t=' + new Date().getTime())
             .then(response => response.json())
             .then(data => {
-                // Buscamos el polígono de Paxbán de forma más robusta
+                // Buscamos el polígono de Paxbán para cálculos
                 paxbanFeature = data.features.find(f => {
                     const name = f.properties.Name || "";
-                    return name.toLowerCase().includes("paxban") || name.toLowerCase().includes("paxbán");
+                    return name.toLowerCase().includes("paxbán") || name.toLowerCase().includes("paxban");
                 });
                 
-                if (paxbanFeature) console.log("✅ Polígono de Paxbán cargado correctamente.");
-                else console.warn("⚠️ No se encontró el polígono 'Paxbán' en el GeoJSON.");
-
-                L.geoJSON(data, {
+                const paxbanLayer = L.geoJSON(data, {
                     filter: function(feature) {
-                        // Solo mostrar el polígono de Paxbán
-                        return feature.properties.Name && feature.properties.Name.includes("Paxbán");
+                        const name = feature.properties.Name || "";
+                        return name.toLowerCase().includes("paxbán") || name.toLowerCase().includes("paxban");
                     },
                     style: function(feature) {
                         return {
-                            color: "#198754",
-                            weight: 3,
-                            fillOpacity: 0.05
+                            color: "#2e7d32",       // Límite en Verde Bosque
+                            weight: 4,              // Grosor técnico
+                            opacity: 1,
+                            fillOpacity: 0          // SIN FONDO (Transparente)
                         };
                     },
                     onEachFeature: function(feature, layer) {
-                        if (feature.properties.Name) {
-                            layer.bindPopup("<b>Concesión:</b> " + feature.properties.Name);
-                        }
+                        layer.bindPopup("<b>UMF Paxbán</b><br>Zona de Relieve");
                     }
                 }).addTo(map);
-            });
+
+                if (paxbanLayer.getLayers().length > 0) {
+                    map.fitBounds(paxbanLayer.getBounds(), { padding: [50, 50] });
+                } else {
+                    console.warn("No se encontró la concesión Paxbán en el archivo.");
+                }
+            })
+            .catch(error => console.error("Error cargando el GeoJSON:", error));
 
         // Cargar Puntos de Incendio
         fetch('incendios.json?t=' + new Date().getTime())
