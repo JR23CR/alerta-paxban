@@ -301,7 +301,12 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
     
     print(f"📡 Descargando historial regional del {fecha_inicio} al {fecha_fin}...")
     
+    hoy = datetime.utcnow().date()
+    
     for dia in dias:
+        if dia > hoy:
+            continue # Evitar descargar datos de días futuros que la API podría rellenar con datos actuales
+            
         fecha_str = dia.strftime("%Y-%m-%d")
         for sat in satelites:
             try:
@@ -1102,10 +1107,11 @@ def main():
         razon = os.environ.get("REPORT_REASON", "automáticamente")
         
         # Solo enviar notificaciones si NO es el reporte automático programado de las 4 PM
-        # (Se mantiene el guardado del mapa en la galería pero sin el correo verde)
+        # Y si NO es una generación de reporte mensual (para evitar doble correo)
         es_reporte_programado = "automáticamente" in razon and "Reporte Diario" in razon
+        es_generacion_mensual = action_type == "reporte_mensual"
         
-        if not es_reporte_programado:
+        if not es_reporte_programado and not es_generacion_mensual:
             # Mensaje Telegram
             msg = f"🛰️ <b>Reporte de Monitoreo Satelital</b>\n\n" \
                   f"✅ <b>Estado: Sin Amenazas Detectadas</b>\n" \
@@ -1180,10 +1186,10 @@ def main():
         </body>
         </html>
         """
-        if not es_reporte_programado:
+        if not es_reporte_programado and not es_generacion_mensual:
             enviar_correo_alerta(html, asunto="Reporte de Monitoreo Satelital", imagen_mapa=img_bytes)
         else:
-            print("ℹ️ Reporte diario procesado (Mapa guardado), pero se omite el envío de correo por ser programado.")
+            print("ℹ️ Reporte diario procesado (Mapa guardado), pero se omite el envío de correo (Programado o Mensual).")
 
     # Reporte Mensual si se solicita
     if os.environ.get("ACTION_TYPE") == "reporte_mensual":
