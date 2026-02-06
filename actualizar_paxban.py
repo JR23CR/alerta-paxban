@@ -462,15 +462,17 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
         header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
         header_para.style.font.bold = True
         header_para.style.font.size = Pt(14)
-        header_para.style.font.color.rgb = RGBColor(0, 100, 0) # Verde oscuro
+        header_para.style.font.color.rgb = RGBColor(0, 0, 0) # Negro Formal
 
         # --- LOGO (Derecha) ---
         try:
-            if os.path.exists('logo (2).png'):
+            logo_file = 'logo-giborv2 (2) (1).png'
+            if not os.path.exists(logo_file): logo_file = 'logo (2).png' # Respaldo
+            if os.path.exists(logo_file):
                 logo_para = doc.add_paragraph()
                 logo_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
                 run = logo_para.add_run()
-                run.add_picture('logo (2).png', width=Inches(1.5))
+                run.add_picture(logo_file, width=Inches(1.5))
         except Exception: pass
 
         # --- TÍTULOS CENTRADOS ---
@@ -555,7 +557,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 
                 run = p.add_run(f"Evento No. {i} - {fecha}\n")
                 run.bold = True
-                run.font.color.rgb = RGBColor(200, 0, 0)
+                run.font.color.rgb = RGBColor(0, 0, 0) # Negro Formal
                 
                 p.add_run(f"Satélite: {satelite}\n")
                 p.add_run(f"Ubicación Referencial: {ref}\n")
@@ -587,14 +589,14 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
             doc.add_heading('4. Anexo Gráfico: Mapas de Situación', level=1)
             doc.add_paragraph("A continuación se presentan los mapas diarios generados durante el periodo, ilustrando la cobertura de monitoreo sobre la región de Petén.").alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
             
-            for img_path in map_images[:4]:
+            for img_path in map_images:
                 if os.path.exists(img_path):
                     p = doc.add_paragraph()
                     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     run = p.add_run()
                     run.add_picture(img_path, width=Inches(6.0))
-                    fecha_mapa = os.path.basename(img_path).replace("Mapa_Calor_", "").replace(".png", "")
-                    caption = doc.add_paragraph(f"Mapa de Calor - {fecha_mapa}")
+                    nombre_limpio = os.path.basename(img_path).replace(".png", "").replace("Mapa_Calor_", "").replace("_", " ")
+                    caption = doc.add_paragraph(f"Mapa de Situación: {nombre_limpio}")
                     caption.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     caption.style.font.size = Pt(9)
                     caption.style.font.italic = True
@@ -669,16 +671,36 @@ def generar_reporte_mensual(concesiones):
                             if isinstance(data, list): fires_details.extend(data)
                             else: fires_details.append(data)
                     except: pass
-
-        # Recolectar los últimos 4 mapas diarios para el Word
-        map_images_paths = []
-        for src in fuentes:
-            if os.path.exists(src):
-                maps = [os.path.join(src, f) for f in os.listdir(src) if f.endswith(".png")]
-                map_images_paths.extend(maps)
         
-        map_images_paths.sort(reverse=True)
-        map_images_paths = map_images_paths[:4]
+        # --- GENERACIÓN DE MAPAS SEMANALES ACUMULADOS PARA EL WORD ---
+        # Genera 4 mapas (cubriendo todo el mes) con todos los puntos de calor acumulados en ese periodo
+        map_images_paths = []
+        temp_maps_dir = os.path.join(raiz, "Mapas_Semanales_Word")
+        os.makedirs(temp_maps_dir, exist_ok=True)
+        
+        periodos = [(1, 7), (8, 14), (15, 21), (22, 31)]
+        
+        for i, (inicio, fin) in enumerate(periodos):
+            # Filtrar puntos de la semana correspondiente
+            puntos_semana = []
+            for fire in fires_details:
+                try:
+                    # Formato esperado: "DD/MM/YYYY HH:MM (Hora GT)"
+                    dia = int(fire['fecha'].split('/')[0])
+                    if inicio <= dia <= fin:
+                        puntos_semana.append(fire)
+                except: pass
+            
+            # Generar mapa acumulado (incluso si está vacío, para mostrar cobertura)
+            print(f"🗺️ Generando mapa acumulado Semana {i+1} ({len(puntos_semana)} puntos)...")
+            img_bytes = generar_mapa_imagen(puntos_semana, concesiones)
+            
+            if img_bytes:
+                nombre_archivo = f"Semana_{i+1}_(Dias_{inicio}_al_{fin}).png"
+                ruta_archivo = os.path.join(temp_maps_dir, nombre_archivo)
+                with open(ruta_archivo, "wb") as f:
+                    f.write(img_bytes)
+                map_images_paths.append(ruta_archivo)
 
         # Generar Word con el nuevo formato
         crear_informe_word(
