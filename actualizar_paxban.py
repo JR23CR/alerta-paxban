@@ -635,12 +635,12 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
             if pre_alerts_list:
                 resumen_p = doc.add_paragraph(
                     f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido. "
-                    f"Tras el análisis exhaustivo de los datos satelitales procesados, se informa oficialmente que NO se detectaron anomalías térmicas "
-                    f"ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán. "
-                    f"Sin embargo, se detectaron {len(pre_alerts_list)} puntos de pre-alerta en la zona de amortiguamiento, los cuales se detallan a continuación:"
+                    f"Aunque NO se detectaron alertas de incendio dentro de los límites de la Concesión, se registraron {len(pre_alerts_list)} "
+                    f"puntos de calor en la zona de amortiguamiento (perímetro de 10 km). Estos eventos se clasifican como PRE-ALERTAS y se "
+                    "detallan a continuación para su seguimiento:"
                 )
                 resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                
+
                 doc.add_paragraph() # Espacio
                 doc.add_heading('3.1. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
                 
@@ -671,10 +671,10 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     doc.add_paragraph("-" * 50)
             else:
                 resumen_p = doc.add_paragraph(
-                    f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido. "
-                    f"Tras el análisis exhaustivo de los datos satelitales procesados, se informa oficialmente que NO se detectaron anomalías térmicas "
-                    f"ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán.\n\n"
-                    "Este resultado indica una estabilidad en la cobertura forestal y la efectividad de las medidas de prevención implementadas en la unidad de manejo."
+                    f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido sobre la Unidad de Manejo Paxbán. "
+                    "Tras el análisis exhaustivo de los datos satelitales, se concluye que el periodo finalizó SIN NINGUNA ALERTA de incendio "
+                    "dentro de la concesión y SIN PRE-ALERTAS en la zona de amortiguamiento.\n\n"
+                    "Este resultado representa un escenario de estabilidad ideal para la cobertura forestal e indica la efectividad de las medidas de prevención implementadas."
                 )
                 resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         # --- ANEXO GRÁFICO ---
