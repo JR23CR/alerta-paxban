@@ -329,9 +329,19 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
                                     if fecha_dato != fecha_req:
                                         continue # Ignorar si la fecha no coincide exactamente
                                 except: pass
+                            
+                            # Convertir a hora Guatemala (UTC-6)
+                            dt = datetime.strptime(f"{d[5]} {d[6]}", "%Y-%m-%d %H%M")
+                            dt_gt = dt - timedelta(hours=6)
+                            fecha_gt = dt_gt.strftime("%d/%m/%Y %H:%M")
 
-                            # Agregar punto (Color rojo para visibilidad en reporte semanal)
-                            puntos.append({"lat": float(d[0]), "lon": float(d[1]), "color": "red"})
+                            puntos.append({
+                                "lat": float(d[0]), "lon": float(d[1]), 
+                                "color": "red", # Color base para mapas semanales
+                                "sat": sat,
+                                "fecha": f"{fecha_gt} (Hora GT)",
+                                "fecha_simple": d[5] # Para filtrado fácil
+                            })
                         except: pass
             except requests.exceptions.ConnectionError:
                 print("⚠️ Error de conexión detectado. Deteniendo descarga histórica para evitar bloqueos.")

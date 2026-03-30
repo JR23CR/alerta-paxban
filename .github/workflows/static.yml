@@ -141,11 +141,13 @@ jobs:
           [ -f "incendios.json" ] && git add -f incendios.json
           [ -f "metadata.json" ] && git add -f metadata.json
 
-          # 2. SOLO guardar historial pesado si es reporte completo (4 PM o Manual)
+          # 2. SIEMPRE guardar la bitácora si se generó, es crucial para el reporte mensual
+          [ -d "bitacora" ] && git add bitacora/
+
+          # 3. SOLO guardar el resto del historial pesado si es reporte completo (4 PM o Manual)
           if [[ "${{ env.FORCE_REPORT }}" == "true" ]]; then
             [ -d "mapa_reporte_diario" ] && git add mapa_reporte_diario/
             [ -d "2.4" ] && git add 2.4/
-            [ -d "bitacora" ] && git add bitacora/
             [ -d "descargas" ] && git add descargas/
             [ -f "reportes.html" ] && git add reportes.html
           fi
