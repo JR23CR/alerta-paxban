@@ -501,7 +501,7 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1)
         print(f"⚠️ Error generando mapa: {e}", file=sys.stderr)
         return None
 
-def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, concesiones=None):
+def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, concesiones=None, pre_alerts_list=None):
     if not Document: return
     try:
         doc = Document()
@@ -602,7 +602,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
         doc.add_heading('3. Resultados del Monitoreo Mensual', level=1)
         if fires_list:
             resumen_p = doc.add_paragraph(f"Durante el mes de {mes_nombre} de {anio}, el sistema registró un total de {len(fires_list)} puntos de calor dentro del área de interés. A continuación, se detalla la bitácora de detecciones:")
-            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY # cite: 1
             
             for i, fire in enumerate(fires_list, 1):
                 p = doc.add_paragraph()
@@ -632,14 +632,51 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 
                 doc.add_paragraph("-" * 50)
         else:
-            resumen_p = doc.add_paragraph(
-                f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido. "
-                f"Tras el análisis exhaustivo de los datos satelitales procesados, se informa oficialmente que NO se detectaron anomalías térmicas "
-                f"ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán.\n\n"
-                "Este resultado indica una estabilidad en la cobertura forestal y la efectividad de las medidas de prevención implementadas en la unidad de manejo."
-            )
-            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-
+            if pre_alerts_list:
+                resumen_p = doc.add_paragraph(
+                    f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido. "
+                    f"Tras el análisis exhaustivo de los datos satelitales procesados, se informa oficialmente que NO se detectaron anomalías térmicas "
+                    f"ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán. "
+                    f"Sin embargo, se detectaron {len(pre_alerts_list)} puntos de pre-alerta en la zona de amortiguamiento, los cuales se detallan a continuación:"
+                )
+                resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                
+                doc.add_paragraph() # Espacio
+                doc.add_heading('3.1. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
+                
+                for i, pre_alert in enumerate(pre_alerts_list, 1):
+                    p = doc.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    ref = pre_alert.get('dist_info', 'N/A')
+                    gtm = pre_alert.get('gtm', 'N/A')
+                    fecha = pre_alert.get('fecha', 'N/A')
+                    satelite = pre_alert.get('sat', 'Desconocido')
+                    
+                    run = p.add_run(f"Pre-Alerta No. {i} - {fecha}\n")
+                    run.bold = True
+                    run.font.color.rgb = RGBColor(0, 0, 0) # Negro Formal
+                    
+                    p.add_run(f"Satélite: {satelite}\n")
+                    p.add_run(f"Ubicación Referencial: {ref}\n")
+                    p.add_run(f"Coordenadas GTM: {gtm}\n")
+                    
+                    if concesiones:
+                        try:
+                            img_focused = generar_mapa_imagen([pre_alert], concesiones, center_point=(pre_alert['lon'], pre_alert['lat']), buffer=0.08)
+                            if img_focused:
+                                img_stream = BytesIO(img_focused)
+                                doc.add_picture(img_stream, width=Inches(4.0))
+                                doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        except: pass
+                    doc.add_paragraph("-" * 50)
+            else:
+                resumen_p = doc.add_paragraph(
+                    f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido. "
+                    f"Tras el análisis exhaustivo de los datos satelitales procesados, se informa oficialmente que NO se detectaron anomalías térmicas "
+                    f"ni alertas de incendio dentro de los límites de la Concesión Industrial Paxbán.\n\n"
+                    "Este resultado indica una estabilidad en la cobertura forestal y la efectividad de las medidas de prevención implementadas en la unidad de manejo."
+                )
+                resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         # --- ANEXO GRÁFICO ---
         if map_images:
             doc.add_page_break()
@@ -733,6 +770,18 @@ def generar_reporte_mensual(concesiones):
                             else: fires_details.append(data)
                     except: pass
         
+        # Recolectar detalles de pre-alertas
+        pre_alerts_details = []
+        src_pre_alertas = os.path.join("bitacora", anio, mes, "pre_alertas")
+        if os.path.exists(src_pre_alertas):
+            for f in sorted(os.listdir(src_pre_alertas)):
+                if f.endswith(".json"):
+                    try:
+                        with open(os.path.join(src_pre_alertas, f), 'r', encoding='utf-8') as jf:
+                            data = json.load(jf)
+                            if isinstance(data, list): pre_alerts_details.extend(data)
+                            else: pre_alerts_details.append(data)
+        
         # --- GENERACIÓN DE MAPAS SEMANALES ACUMULADOS PARA EL WORD ---
         # Genera 4 mapas (cubriendo todo el mes) con todos los puntos de calor acumulados en ese periodo
         map_images_paths = []
@@ -770,7 +819,7 @@ def generar_reporte_mensual(concesiones):
         crear_informe_word(
             os.path.join(raiz, "Informe de Puntos de Calor", "Informe.docx"), 
             nombre_mes, anio, fires_details, map_images_paths,
-            concesiones=concesiones
+            concesiones=concesiones, pre_alerts_list=pre_alerts_details
         )
 
         # ZIP
