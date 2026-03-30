@@ -600,9 +600,23 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
 
         # --- RESULTADOS ---
         doc.add_heading('3. Resultados del Monitoreo Mensual', level=1)
+
+        if not fires_list and not pre_alerts_list:
+            resumen_p = doc.add_paragraph(
+                f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido sobre la Unidad de Manejo Paxbán. "
+                "Tras el análisis exhaustivo de los datos satelitales, se concluye que el periodo finalizó SIN NINGUNA ALERTA de incendio "
+                "dentro de la concesión y SIN PRE-ALERTAS en la zona de amortiguamiento.\n\n"
+                "Este resultado representa un escenario de estabilidad ideal para la cobertura forestal e indica la efectividad de las medidas de prevención implementadas."
+            )
+            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        else:
+            resumen_p = doc.add_paragraph(
+                f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema de monitoreo satelital registró la siguiente actividad térmica en el área de interés y su zona de amortiguamiento. A continuación se presenta el desglose:"
+            )
+            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
         if fires_list:
-            resumen_p = doc.add_paragraph(f"Durante el mes de {mes_nombre} de {anio}, el sistema registró un total de {len(fires_list)} puntos de calor dentro del área de interés. A continuación, se detalla la bitácora de detecciones:")
-            resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY # cite: 1
+            doc.add_heading('3.1. Alertas de Incendio (Interior de la Concesión)', level=2)
             
             for i, fire in enumerate(fires_list, 1):
                 p = doc.add_paragraph()
@@ -614,13 +628,12 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 
                 run = p.add_run(f"Evento No. {i} - {fecha}\n")
                 run.bold = True
-                run.font.color.rgb = RGBColor(0, 0, 0) # Negro Formal
+                run.font.color.rgb = RGBColor(0, 0, 0)
                 
                 p.add_run(f"Satélite: {satelite}\n")
                 p.add_run(f"Ubicación Referencial: {ref}\n")
                 p.add_run(f"Coordenadas GTM: {gtm}\n")
                 
-                # Generar e insertar imagen enfocada para este punto
                 if concesiones:
                     try:
                         img_focused = generar_mapa_imagen([fire], concesiones, center_point=(fire['lon'], fire['lat']), buffer=0.08)
@@ -631,52 +644,35 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     except: pass
                 
                 doc.add_paragraph("-" * 50)
-        else:
-            if pre_alerts_list:
-                resumen_p = doc.add_paragraph(
-                    f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido. "
-                    f"Aunque NO se detectaron alertas de incendio dentro de los límites de la Concesión, se registraron {len(pre_alerts_list)} "
-                    f"puntos de calor en la zona de amortiguamiento (perímetro de 10 km). Estos eventos se clasifican como PRE-ALERTAS y se "
-                    "detallan a continuación para su seguimiento:"
-                )
-                resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-                doc.add_paragraph() # Espacio
-                doc.add_heading('3.1. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
+        if pre_alerts_list:
+            doc.add_heading('3.2. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
+            
+            for i, pre_alert in enumerate(pre_alerts_list, 1):
+                p = doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                ref = pre_alert.get('dist_info', 'N/A')
+                gtm = pre_alert.get('gtm', 'N/A')
+                fecha = pre_alert.get('fecha', 'N/A')
+                satelite = pre_alert.get('sat', 'Desconocido')
                 
-                for i, pre_alert in enumerate(pre_alerts_list, 1):
-                    p = doc.add_paragraph()
-                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                    ref = pre_alert.get('dist_info', 'N/A')
-                    gtm = pre_alert.get('gtm', 'N/A')
-                    fecha = pre_alert.get('fecha', 'N/A')
-                    satelite = pre_alert.get('sat', 'Desconocido')
-                    
-                    run = p.add_run(f"Pre-Alerta No. {i} - {fecha}\n")
-                    run.bold = True
-                    run.font.color.rgb = RGBColor(0, 0, 0) # Negro Formal
-                    
-                    p.add_run(f"Satélite: {satelite}\n")
-                    p.add_run(f"Ubicación Referencial: {ref}\n")
-                    p.add_run(f"Coordenadas GTM: {gtm}\n")
-                    
-                    if concesiones:
-                        try:
-                            img_focused = generar_mapa_imagen([pre_alert], concesiones, center_point=(pre_alert['lon'], pre_alert['lat']), buffer=0.08)
-                            if img_focused:
-                                img_stream = BytesIO(img_focused)
-                                doc.add_picture(img_stream, width=Inches(4.0))
-                                doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        except: pass
-                    doc.add_paragraph("-" * 50)
-            else:
-                resumen_p = doc.add_paragraph(
-                    f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema mantuvo un monitoreo ininterrumpido sobre la Unidad de Manejo Paxbán. "
-                    "Tras el análisis exhaustivo de los datos satelitales, se concluye que el periodo finalizó SIN NINGUNA ALERTA de incendio "
-                    "dentro de la concesión y SIN PRE-ALERTAS en la zona de amortiguamiento.\n\n"
-                    "Este resultado representa un escenario de estabilidad ideal para la cobertura forestal e indica la efectividad de las medidas de prevención implementadas."
-                )
-                resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                run = p.add_run(f"Pre-Alerta No. {i} - {fecha}\n")
+                run.bold = True
+                run.font.color.rgb = RGBColor(0, 0, 0)
+                
+                p.add_run(f"Satélite: {satelite}\n")
+                p.add_run(f"Ubicación Referencial: {ref}\n")
+                p.add_run(f"Coordenadas GTM: {gtm}\n")
+                
+                if concesiones:
+                    try:
+                        img_focused = generar_mapa_imagen([pre_alert], concesiones, center_point=(pre_alert['lon'], pre_alert['lat']), buffer=0.08)
+                        if img_focused:
+                            img_stream = BytesIO(img_focused)
+                            doc.add_picture(img_stream, width=Inches(4.0))
+                            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    except: pass
+                doc.add_paragraph("-" * 50)
         # --- ANEXO GRÁFICO ---
         if map_images:
             doc.add_page_break()
