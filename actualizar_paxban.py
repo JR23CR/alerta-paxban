@@ -458,7 +458,7 @@ def generar_galeria_html():
     except Exception as e:
         print(f"❌ Error generando galería: {e}", file=sys.stderr)
 
-def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1, basemap_provider=cx.providers.Esri.NatGeoWorldMap, is_pre_alert_map=False):
+def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1, basemap_provider=cx.providers.Esri.NatGeoWorldMap, is_pre_alert_map=False, draw_buffer=False):
     """Genera imagen PNG del mapa."""
     if not Transformer: return None
     try:
@@ -478,6 +478,17 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
             xs.append(x); ys.append(y); colores.append(p['color'])
         
         fig, ax = plt.subplots(figsize=(10, 10))
+        
+        if draw_buffer and paxban_poly:
+            buffer_poly = paxban_poly.buffer(0.09) # Approx 10km
+            buffer_3857 = transform(transformer.transform, buffer_poly)
+            if buffer_3857.geom_type == 'Polygon':
+                x_b, y_b = buffer_3857.exterior.xy
+                ax.plot(x_b, y_b, color='orange', linestyle='--', linewidth=2, zorder=1)
+            elif buffer_3857.geom_type == 'MultiPolygon':
+                 for p_b in buffer_3857.geoms:
+                    x_b, y_b = p_b.exterior.xy
+                    ax.plot(x_b, y_b, color='orange', linestyle='--', linewidth=2, zorder=1)
         
         if concesiones:
             if paxban_poly:
@@ -508,7 +519,7 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
             if 'metros' in dist_text:
                 text_x = (p_on_poly_3857.x + p_3857.x) / 2
                 text_y = (p_on_poly_3857.y + p_3857.y) / 2
-                ax.text(text_x, text_y, f" {dist_text.split(' ')[0]}m ", color='white', fontsize=9,
+                ax.text(text_x, text_y, f" {dist_text.split(' ')[0]}m ", color='white', fontsize=14,
                         ha='center', va='center', zorder=4,
                         bbox=dict(facecolor='black', alpha=0.6, boxstyle='round,pad=0.2', edgecolor='cyan'))
 
@@ -516,6 +527,10 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
             lon, lat = center_point
             minx, miny = transformer.transform(lon - buffer, lat - buffer)
             maxx, maxy = transformer.transform(lon + buffer, lat + buffer)
+        elif draw_buffer and paxban_poly:
+            poly_3857 = transform(transformer.transform, paxban_poly)
+            bounds = poly_3857.buffer(0.1).bounds # Usar un buffer un poco más grande para el view
+            minx, miny, maxx, maxy = bounds
         else:
             minx, miny = transformer.transform(-91.5, 15.8)
             maxx, maxy = transformer.transform(-89.0, 17.9)
@@ -528,6 +543,11 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
             print(f"⚠️ Advertencia: No se pudo descargar el mapa base ({e}). Se generará sin fondo.", file=sys.stderr)
             
         ax.set_axis_off()
+
+        if draw_buffer:
+            buffer_line = Line2D([0], [0], color='orange', lw=2, linestyle='--', label='Zona de Amortiguamiento (10km)')
+            paxban_line = Line2D([0], [0], color='#2e7d32', lw=2, label='Límite Concesión Paxbán')
+            ax.legend(handles=[paxban_line, buffer_line], loc='upper right', frameon=True, facecolor='white', framealpha=0.8)
         
         buf = BytesIO()
         plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
@@ -667,6 +687,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 cell1 = row_cells[0]
                 p1 = cell1.paragraphs[0] if cell1.paragraphs else cell1.add_paragraph()
                 p1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                p1.paragraph_format.keep_with_next = True
                 run1 = p1.add_run(f"Evento No. {i+1} - {fire1.get('fecha', 'N/A')}\n")
                 run1.bold = True
                 p1.add_run(f"Satélite: {fire1.get('sat', 'Desconocido')}\n")
@@ -688,6 +709,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     cell2 = row_cells[1]
                     p2 = cell2.paragraphs[0] if cell2.paragraphs else cell2.add_paragraph()
                     p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    p2.paragraph_format.keep_with_next = True
                     run2 = p2.add_run(f"Evento No. {i+2} - {fire2.get('fecha', 'N/A')}\n")
                     run2.bold = True
                     p2.add_run(f"Satélite: {fire2.get('sat', 'Desconocido')}\n")
@@ -706,8 +728,29 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
             p = doc.add_paragraph("No se registraron alertas de incendio dentro de los límites de la Concesión Industrial Paxbán durante este periodo.")
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
+        # --- ZONA DE AMORTIGUAMIENTO ---
+        doc.add_heading('3.2. Zona de Amortiguamiento (Buffer de 10 km)', level=2)
+        p_buffer_desc = doc.add_paragraph()
+        p_buffer_desc.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        p_buffer_desc.add_run(
+            "Para la detección proactiva de amenazas, el sistema monitorea una zona de amortiguamiento que se extiende 10 kilómetros "
+            "alrededor del perímetro de la Concesión Paxbán. El siguiente mapa ilustra esta área de vigilancia estratégica, "
+            "donde cualquier punto de calor detectado se clasifica como una "
+        )
+        p_buffer_desc.add_run("pre-alerta.").italic = True
+
+        try:
+            buffer_map_bytes = generar_mapa_imagen([], concesiones, draw_buffer=True, basemap_provider=cx.providers.Esri.WorldImagery)
+            if buffer_map_bytes:
+                p_map = doc.add_paragraph()
+                p_map.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                run_map = p_map.add_run()
+                run_map.add_picture(BytesIO(buffer_map_bytes), width=Inches(5.0))
+        except Exception as e:
+            print(f"⚠️ Error generando mapa de zona de amortiguamiento: {e}")
+
         if pre_alerts_list:
-            doc.add_heading('3.2. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
+            doc.add_heading('3.3. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
             table_pre = doc.add_table(rows=0, cols=2)
             table_pre.autofit = False
             table_pre.allow_autofit = False
@@ -722,6 +765,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 cell1 = row_cells[0]
                 p1 = cell1.paragraphs[0] if cell1.paragraphs else cell1.add_paragraph()
                 p1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                p1.paragraph_format.keep_with_next = True
                 run1 = p1.add_run(f"Pre-Alerta No. {i+1} - {pre_alert1.get('fecha', 'N/A')}\n")
                 run1.bold = True
                 p1.add_run(f"Satélite: {pre_alert1.get('sat', 'Desconocido')}\n")
@@ -743,6 +787,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     cell2 = row_cells[1]
                     p2 = cell2.paragraphs[0] if cell2.paragraphs else cell2.add_paragraph()
                     p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    p2.paragraph_format.keep_with_next = True
                     run2 = p2.add_run(f"Pre-Alerta No. {i+2} - {pre_alert2.get('fecha', 'N/A')}\n")
                     run2.bold = True
                     p2.add_run(f"Satélite: {pre_alert2.get('sat', 'Desconocido')}\n")
