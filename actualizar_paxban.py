@@ -110,11 +110,17 @@ def calcular_distancia_direccion(p, poly):
         dx = p_meter.x - p_near.x
         dy = p_meter.y - p_near.y
         angle = math.degrees(math.atan2(dy, dx))
-        
-        if -45 <= angle <= 45: direction = "Este"
-        elif 45 < angle <= 135: direction = "Norte"
-        elif -135 <= angle < -45: direction = "Sur"
-        else: direction = "Oeste"
+        if angle < 0: angle += 360
+
+        if 337.5 <= angle or angle < 22.5: direction = "Este"
+        elif 22.5 <= angle < 67.5: direction = "Noreste"
+        elif 67.5 <= angle < 112.5: direction = "Norte"
+        elif 112.5 <= angle < 157.5: direction = "Noroeste"
+        elif 157.5 <= angle < 202.5: direction = "Oeste"
+        elif 202.5 <= angle < 247.5: direction = "Suroeste"
+        elif 247.5 <= angle < 292.5: direction = "Sur"
+        else: # 292.5 <= angle < 337.5
+            direction = "Sureste"
         
         return f"{int(dist_meters)} metros del límite {direction}"
     except Exception:
@@ -647,64 +653,110 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
 
         doc.add_heading('3.1. Alertas de Incendio (Interior de la Concesión)', level=2)
         if fires_list:
-            for i, fire in enumerate(fires_list, 1):
-                p = doc.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                ref = fire.get('dist_campamento', 'N/A')
-                gtm = fire.get('gtm', 'N/A')
-                fecha = fire.get('fecha', 'N/A')
-                satelite = fire.get('sat', 'Desconocido')
+            table = doc.add_table(rows=0, cols=2)
+            table.autofit = False
+            table.allow_autofit = False
+            table.columns[0].width = Inches(3.0)
+            table.columns[1].width = Inches(3.0)
+
+            for i in range(0, len(fires_list), 2):
+                row_cells = table.add_row().cells
                 
-                run = p.add_run(f"Evento No. {i} - {fecha}\n")
-                run.bold = True
-                run.font.color.rgb = RGBColor(0, 0, 0)
+                # --- Evento 1 ---
+                fire1 = fires_list[i]
+                cell1 = row_cells[0]
+                p1 = cell1.paragraphs[0] if cell1.paragraphs else cell1.add_paragraph()
+                p1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                run1 = p1.add_run(f"Evento No. {i+1} - {fire1.get('fecha', 'N/A')}\n")
+                run1.bold = True
+                p1.add_run(f"Satélite: {fire1.get('sat', 'Desconocido')}\n")
+                p1.add_run(f"Ubicación Referencial: {fire1.get('dist_campamento', 'N/A')}\n")
+                p1.add_run(f"Coordenadas GTM: {fire1.get('gtm', 'N/A')}\n")
                 
-                p.add_run(f"Satélite: {satelite}\n")
-                p.add_run(f"Ubicación Referencial: {ref}\n")
-                p.add_run(f"Coordenadas GTM: {gtm}\n")
-                
-                if concesiones:
+                try:
+                    img_focused1 = generar_mapa_imagen([fire1], concesiones, center_point=(fire1['lon'], fire1['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery)
+                    if img_focused1:
+                        pic_para1 = cell1.add_paragraph()
+                        pic_para1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run_pic1 = pic_para1.add_run()
+                        run_pic1.add_picture(BytesIO(img_focused1), width=Inches(2.8))
+                except: pass
+
+                # --- Evento 2 (si existe) ---
+                if i + 1 < len(fires_list):
+                    fire2 = fires_list[i+1]
+                    cell2 = row_cells[1]
+                    p2 = cell2.paragraphs[0] if cell2.paragraphs else cell2.add_paragraph()
+                    p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    run2 = p2.add_run(f"Evento No. {i+2} - {fire2.get('fecha', 'N/A')}\n")
+                    run2.bold = True
+                    p2.add_run(f"Satélite: {fire2.get('sat', 'Desconocido')}\n")
+                    p2.add_run(f"Ubicación Referencial: {fire2.get('dist_campamento', 'N/A')}\n")
+                    p2.add_run(f"Coordenadas GTM: {fire2.get('gtm', 'N/A')}\n")
+
                     try:
-                        img_focused = generar_mapa_imagen([fire], concesiones, center_point=(fire['lon'], fire['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery)
-                        if img_focused:
-                            img_stream = BytesIO(img_focused)
-                            doc.add_picture(img_stream, width=Inches(4.0))
-                            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        img_focused2 = generar_mapa_imagen([fire2], concesiones, center_point=(fire2['lon'], fire2['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery)
+                        if img_focused2:
+                            pic_para2 = cell2.add_paragraph()
+                            pic_para2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            run_pic2 = pic_para2.add_run()
+                            run_pic2.add_picture(BytesIO(img_focused2), width=Inches(2.8))
                     except: pass
-                
-                doc.add_paragraph("-" * 50)
         else:
             p = doc.add_paragraph("No se registraron alertas de incendio dentro de los límites de la Concesión Industrial Paxbán durante este periodo.")
             p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
         if pre_alerts_list:
             doc.add_heading('3.2. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
-            
-            for i, pre_alert in enumerate(pre_alerts_list, 1):
-                p = doc.add_paragraph()
-                p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                ref = pre_alert.get('dist_info', 'N/A')
-                gtm = pre_alert.get('gtm', 'N/A')
-                fecha = pre_alert.get('fecha', 'N/A')
-                satelite = pre_alert.get('sat', 'Desconocido')
+            table_pre = doc.add_table(rows=0, cols=2)
+            table_pre.autofit = False
+            table_pre.allow_autofit = False
+            table_pre.columns[0].width = Inches(3.0)
+            table_pre.columns[1].width = Inches(3.0)
+
+            for i in range(0, len(pre_alerts_list), 2):
+                row_cells = table_pre.add_row().cells
                 
-                run = p.add_run(f"Pre-Alerta No. {i} - {fecha}\n")
-                run.bold = True
-                run.font.color.rgb = RGBColor(0, 0, 0)
-                
-                p.add_run(f"Satélite: {satelite}\n")
-                p.add_run(f"Ubicación Referencial: {ref}\n")
-                p.add_run(f"Coordenadas GTM: {gtm}\n")
-                
-                if concesiones:
+                # --- Pre-Alerta 1 ---
+                pre_alert1 = pre_alerts_list[i]
+                cell1 = row_cells[0]
+                p1 = cell1.paragraphs[0] if cell1.paragraphs else cell1.add_paragraph()
+                p1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                run1 = p1.add_run(f"Pre-Alerta No. {i+1} - {pre_alert1.get('fecha', 'N/A')}\n")
+                run1.bold = True
+                p1.add_run(f"Satélite: {pre_alert1.get('sat', 'Desconocido')}\n")
+                p1.add_run(f"Ubicación Referencial: {pre_alert1.get('dist_info', 'N/A')}\n")
+                p1.add_run(f"Coordenadas GTM: {pre_alert1.get('gtm', 'N/A')}\n")
+
+                try:
+                    img_focused1 = generar_mapa_imagen([pre_alert1], concesiones, center_point=(pre_alert1['lon'], pre_alert1['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery, is_pre_alert_map=True)
+                    if img_focused1:
+                        pic_para1 = cell1.add_paragraph()
+                        pic_para1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        run_pic1 = pic_para1.add_run()
+                        run_pic1.add_picture(BytesIO(img_focused1), width=Inches(2.8))
+                except: pass
+
+                # --- Pre-Alerta 2 (si existe) ---
+                if i + 1 < len(pre_alerts_list):
+                    pre_alert2 = pre_alerts_list[i+1]
+                    cell2 = row_cells[1]
+                    p2 = cell2.paragraphs[0] if cell2.paragraphs else cell2.add_paragraph()
+                    p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    run2 = p2.add_run(f"Pre-Alerta No. {i+2} - {pre_alert2.get('fecha', 'N/A')}\n")
+                    run2.bold = True
+                    p2.add_run(f"Satélite: {pre_alert2.get('sat', 'Desconocido')}\n")
+                    p2.add_run(f"Ubicación Referencial: {pre_alert2.get('dist_info', 'N/A')}\n")
+                    p2.add_run(f"Coordenadas GTM: {pre_alert2.get('gtm', 'N/A')}\n")
+
                     try:
-                        img_focused = generar_mapa_imagen([pre_alert], concesiones, center_point=(pre_alert['lon'], pre_alert['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery, is_pre_alert_map=True)
-                        if img_focused:
-                            img_stream = BytesIO(img_focused)
-                            doc.add_picture(img_stream, width=Inches(4.0))
-                            doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.CENTER
+                        img_focused2 = generar_mapa_imagen([pre_alert2], concesiones, center_point=(pre_alert2['lon'], pre_alert2['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery, is_pre_alert_map=True)
+                        if img_focused2:
+                            pic_para2 = cell2.add_paragraph()
+                            pic_para2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                            run_pic2 = pic_para2.add_run()
+                            run_pic2.add_picture(BytesIO(img_focused2), width=Inches(2.8))
                     except: pass
-                doc.add_paragraph("-" * 50)
         # --- ANEXO GRÁFICO ---
         if map_images:
             doc.add_page_break()
@@ -938,7 +990,29 @@ def cargar_concesiones():
     try:
         with open('concesiones1.geojson', 'r', encoding='utf-8') as f:
             data = json.load(f)
+        
+        if not Transformer:
+            print("⚠️ Pyproj no disponible, no se puede aplicar desplazamiento al polígono.")
             return {f['properties'].get('Name', 'X'): shape(f['geometry']) for f in data['features']}
+
+        concesiones_dict = {}
+        trans_to_gtm = Transformer.from_crs("EPSG:4326", GTM_PROJ_STR, always_xy=True)
+        trans_to_wgs = Transformer.from_crs(GTM_PROJ_STR, "EPSG:4326", always_xy=True)
+
+        for f in data['features']:
+            poly = shape(f['geometry'])
+            name = f['properties'].get('Name', 'X')
+            
+            if "Paxbán" in name:
+                print("🏗️ Aplicando desplazamiento de 100m al Norte al polígono de Paxbán para todos los cálculos...")
+                poly_gtm = transform(trans_to_gtm.transform, poly)
+                def shift_north(x, y, z=None):
+                    return x, y + 100
+                poly_shifted_gtm = transform(shift_north, poly_gtm)
+                poly = transform(trans_to_wgs.transform, poly_shifted_gtm)
+
+            concesiones_dict[name] = poly
+        return concesiones_dict
     except Exception as e:
         print(f"⚠️ Error cargando concesiones: {e}", file=sys.stderr)
         return {}
