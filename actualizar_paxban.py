@@ -761,39 +761,51 @@ def generar_reporte_mensual(concesiones):
                         if f"_{anio}-{mes}-" in f:
                             shutil.copy2(os.path.join(src, f), os.path.join(raiz, "Reporte Diario"))
 
-        # Recolectar detalles de incendios y copiar imágenes
+        # --- RECONSTRUCCIÓN DE EVENTOS DESDE HISTORIAL NASA ---
+        # En lugar de depender de las bitácoras (que pudieron no guardarse),
+        # se descarga el historial completo del mes y se reclasifica cada punto.
+        # Esto asegura que el reporte mensual sea siempre la fuente de verdad.
+        print("🔎 Recalculando todos los eventos del mes desde el historial de NASA FIRMS para máxima precisión...")
         fires_details = []
-        src_alertas = os.path.join("bitacora", anio, mes, "alertas")
-        if os.path.exists(src_alertas):
-            for f in sorted(os.listdir(src_alertas)):
-                if f.endswith(".png"):
-                    shutil.copy2(os.path.join(src_alertas, f), os.path.join(raiz, "Incendios Detectados"))
-                elif f.endswith(".json"):
-                    try:
-                        with open(os.path.join(src_alertas, f), 'r', encoding='utf-8') as jf:
-                            data = json.load(jf)
-                            if isinstance(data, list): fires_details.extend(data)
-                            else: fires_details.append(data)
-                    except json.JSONDecodeError as e:
-                        print(f"⚠️ Error decodificando JSON en {f}: {e}", file=sys.stderr)
-                    except Exception as e:
-                        print(f"⚠️ Error inesperado al procesar {f}: {e}", file=sys.stderr)
-        
-        # Recolectar detalles de pre-alertas
         pre_alerts_details = []
-        src_pre_alertas = os.path.join("bitacora", anio, mes, "pre_alertas")
-        if os.path.exists(src_pre_alertas):
-            for f in sorted(os.listdir(src_pre_alertas)):
-                if f.endswith(".json"):
-                    try:
-                        with open(os.path.join(src_pre_alertas, f), 'r', encoding='utf-8') as jf:
-                            data = json.load(jf)
-                            if isinstance(data, list): pre_alerts_details.extend(data)
-                            else: pre_alerts_details.append(data)
-                    except json.JSONDecodeError as e:
-                        print(f"⚠️ Error decodificando JSON en {f}: {e}", file=sys.stderr)
-                    except Exception as e:
-                        print(f"⚠️ Error inesperado al procesar {f}: {e}", file=sys.stderr)
+
+        f_inicio_mes = f"{anio}-{mes}-01"
+        ultimo_dia_mes = (datetime(int(anio), int(mes) % 12 + 1, 1) - timedelta(days=1)).day if int(mes) < 12 else 31
+        f_fin_mes = f"{anio}-{mes}-{ultimo_dia_mes:02d}"
+
+        puntos_del_mes = descargar_puntos_historicos(f_inicio_mes, f_fin_mes)
+
+        for punto in puntos_del_mes:
+            p = Point(punto['lon'], punto['lat'])
+            en_paxban = False
+            en_prealerta = False
+            
+            for nom, poly in concesiones.items():
+                if "Paxbán" in nom:
+                    if poly.contains(p):
+                        en_paxban = True
+                        punto['dist_campamento'] = calcular_campamento_cercano(punto['lon'], punto['lat'])
+                        break
+                    elif poly.distance(p) < 0.09: # Buffer de 10km
+                        en_prealerta = True
+                        punto['dist_info'] = calcular_distancia_direccion(p, poly)
+            
+            if en_paxban:
+                punto['gtm'] = convertir_a_gtm(punto['lon'], punto['lat'])
+                fires_details.append(punto)
+            elif en_prealerta:
+                punto['gtm'] = convertir_a_gtm(punto['lon'], punto['lat'])
+                pre_alerts_details.append(punto)
+
+        print(f"Total de eventos recalculados: {len(fires_details)} alertas, {len(pre_alerts_details)} pre-alertas.")
+
+        # Copiar imágenes de la bitácora si existen (para evidencia)
+        src_alertas_img = os.path.join("bitacora", anio, mes, "alertas")
+        if os.path.exists(src_alertas_img):
+            for f in os.listdir(src_alertas_img):
+                if f.endswith(".png"):
+                    shutil.copy2(os.path.join(src_alertas_img, f), os.path.join(raiz, "Incendios Detectados"))
+
         # --- GENERACIÓN DE MAPAS SEMANALES ACUMULADOS PARA EL WORD ---
         # Genera 4 mapas (cubriendo todo el mes) con todos los puntos de calor acumulados en ese periodo
         map_images_paths = []
@@ -813,7 +825,7 @@ def generar_reporte_mensual(concesiones):
                 f_fin = f"{anio}-{mes}-{fin_real:02d}"
                 
                 # Descargar DATOS REALES de la región para esa semana
-                puntos_semana = descargar_puntos_historicos(f_inicio, f_fin)
+                puntos_semana = [p for p in puntos_del_mes if f_inicio <= p['fecha_simple'] <= f_fin]
             
                 print(f"🗺️ Generando Reporte de Monitoreo Semana {i+1} ({len(puntos_semana)} puntos regionales)...")
                 img_bytes = generar_mapa_imagen(puntos_semana, concesiones)
