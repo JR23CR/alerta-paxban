@@ -452,32 +452,14 @@ def generar_galeria_html():
     except Exception as e:
         print(f"❌ Error generando galería: {e}", file=sys.stderr)
 
-def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1):
+def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1, basemap_provider=cx.providers.Esri.NatGeoWorldMap, is_pre_alert_map=False):
     """Genera imagen PNG del mapa."""
     if not Transformer: return None
     try:
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
         xs, ys, colores = [], [], []
-        for p in puntos:
-            x, y = transformer.transform(p['lon'], p['lat'])
-            xs.append(x); ys.append(y); colores.append(p['color'])
-        
-        fig, ax = plt.subplots(figsize=(10, 10))
-        
-        if concesiones:
-            for nombre, poly in concesiones.items():
-                if "Paxbán" in nombre:
-                    poly_3857 = transform(transformer.transform, poly)
-                    if poly_3857.geom_type == 'Polygon':
-                        x, y = poly_3857.exterior.xy
-                        ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
-                    elif poly_3857.geom_type == 'MultiPolygon':
-                        for p in poly_3857.geoms:
-                            x, y = p.exterior.xy
-                            ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
 
-        if xs: ax.scatter(xs, ys, c=colores, s=50, edgecolors='white', zorder=2)
-
+        # Buscar el polígono de Paxbán para usarlo después
         paxban_poly = None
         if concesiones:
             for nombre, poly in concesiones.items():
@@ -485,19 +467,57 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1)
                     paxban_poly = poly
                     break
 
+        for p in puntos:
+            x, y = transformer.transform(p['lon'], p['lat'])
+            xs.append(x); ys.append(y); colores.append(p['color'])
+        
+        fig, ax = plt.subplots(figsize=(10, 10))
+        
+        if concesiones:
+            if paxban_poly:
+                poly_3857 = transform(transformer.transform, paxban_poly)
+                if poly_3857.geom_type == 'Polygon':
+                    x, y = poly_3857.exterior.xy
+                    ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
+                elif poly_3857.geom_type == 'MultiPolygon':
+                    for p in poly_3857.geoms:
+                        x, y = p.exterior.xy
+                        ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
+
+        if xs: ax.scatter(xs, ys, c=colores, s=50, edgecolors='white', zorder=2)
+
+        if is_pre_alert_map and len(puntos) == 1 and paxban_poly:
+            punto_prealerta = puntos[0]
+            p_geom = Point(punto_prealerta['lon'], punto_prealerta['lat'])
+            p_3857 = transform(transformer.transform, p_geom)
+            poly_3857 = transform(transformer.transform, paxban_poly)
+
+            p_on_poly_3857, _ = nearest_points(poly_3857, p_3857)
+
+            line_x = [p_on_poly_3857.x, p_3857.x]
+            line_y = [p_on_poly_3857.y, p_3857.y]
+            ax.plot(line_x, line_y, color='cyan', linestyle='--', linewidth=2, zorder=3)
+
+            dist_text = punto_prealerta.get('dist_info', '')
+            if 'metros' in dist_text:
+                text_x = (p_on_poly_3857.x + p_3857.x) / 2
+                text_y = (p_on_poly_3857.y + p_3857.y) / 2
+                ax.text(text_x, text_y, f" {dist_text.split(' ')[0]}m ", color='white', fontsize=9,
+                        ha='center', va='center', zorder=4,
+                        bbox=dict(facecolor='black', alpha=0.6, boxstyle='round,pad=0.2', edgecolor='cyan'))
+
         if center_point:
             lon, lat = center_point
             minx, miny = transformer.transform(lon - buffer, lat - buffer)
             maxx, maxy = transformer.transform(lon + buffer, lat + buffer)
         else:
-            # Enfocar en la región de Petén (Vista general amplia anterior)
             minx, miny = transformer.transform(-91.5, 15.8)
             maxx, maxy = transformer.transform(-89.0, 17.9)
 
         ax.set_xlim(minx, maxx); ax.set_ylim(miny, maxy)
         
         try:
-            cx.add_basemap(ax, crs="EPSG:3857", source=cx.providers.Esri.NatGeoWorldMap, attribution=False)
+            cx.add_basemap(ax, crs="EPSG:3857", source=basemap_provider, attribution=False)
         except Exception as e:
             print(f"⚠️ Advertencia: No se pudo descargar el mapa base ({e}). Se generará sin fondo.", file=sys.stderr)
             
@@ -625,9 +645,8 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
             )
             resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
+        doc.add_heading('3.1. Alertas de Incendio (Interior de la Concesión)', level=2)
         if fires_list:
-            doc.add_heading('3.1. Alertas de Incendio (Interior de la Concesión)', level=2)
-            
             for i, fire in enumerate(fires_list, 1):
                 p = doc.add_paragraph()
                 p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
@@ -646,7 +665,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 
                 if concesiones:
                     try:
-                        img_focused = generar_mapa_imagen([fire], concesiones, center_point=(fire['lon'], fire['lat']), buffer=0.08)
+                        img_focused = generar_mapa_imagen([fire], concesiones, center_point=(fire['lon'], fire['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery)
                         if img_focused:
                             img_stream = BytesIO(img_focused)
                             doc.add_picture(img_stream, width=Inches(4.0))
@@ -654,6 +673,9 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     except: pass
                 
                 doc.add_paragraph("-" * 50)
+        else:
+            p = doc.add_paragraph("No se registraron alertas de incendio dentro de los límites de la Concesión Industrial Paxbán durante este periodo.")
+            p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
         if pre_alerts_list:
             doc.add_heading('3.2. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
@@ -676,7 +698,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 
                 if concesiones:
                     try:
-                        img_focused = generar_mapa_imagen([pre_alert], concesiones, center_point=(pre_alert['lon'], pre_alert['lat']), buffer=0.08)
+                        img_focused = generar_mapa_imagen([pre_alert], concesiones, center_point=(pre_alert['lon'], pre_alert['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery, is_pre_alert_map=True)
                         if img_focused:
                             img_stream = BytesIO(img_focused)
                             doc.add_picture(img_stream, width=Inches(4.0))
