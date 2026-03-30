@@ -768,7 +768,10 @@ def generar_reporte_mensual(concesiones):
                             data = json.load(jf)
                             if isinstance(data, list): fires_details.extend(data)
                             else: fires_details.append(data)
-                    except: pass
+                    except json.JSONDecodeError as e:
+                        print(f"⚠️ Error decodificando JSON en {f}: {e}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"⚠️ Error inesperado al procesar {f}: {e}", file=sys.stderr)
         
         # Recolectar detalles de pre-alertas
         pre_alerts_details = []
@@ -781,7 +784,10 @@ def generar_reporte_mensual(concesiones):
                             data = json.load(jf)
                             if isinstance(data, list): pre_alerts_details.extend(data)
                             else: pre_alerts_details.append(data)
-        
+                    except json.JSONDecodeError as e:
+                        print(f"⚠️ Error decodificando JSON en {f}: {e}", file=sys.stderr)
+                    except Exception as e:
+                        print(f"⚠️ Error inesperado al procesar {f}: {e}", file=sys.stderr)
         # --- GENERACIÓN DE MAPAS SEMANALES ACUMULADOS PARA EL WORD ---
         # Genera 4 mapas (cubriendo todo el mes) con todos los puntos de calor acumulados en ese periodo
         map_images_paths = []
