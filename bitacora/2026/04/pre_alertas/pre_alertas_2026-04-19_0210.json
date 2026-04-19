@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.80132,
+    "lon": -90.40776,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "19/04/2026 01:38 (Hora GT)",
+    "horas": 0.5448912994444445,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "509777.60 E, 1968600.79 N",
+    "dist_info": "2484 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  }
+]
