@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.90175,
+    "lon": -90.26197,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "21/04/2026 02:21 (Hora GT)",
+    "horas": 0.5867859525,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "525217.50 E, 1979727.72 N",
+    "dist_info": "9615 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  }
+]
