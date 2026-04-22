@@ -1,0 +1,30 @@
+[
+  {
+    "lat": 17.82055,
+    "lon": -90.34577,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "22/04/2026 15:18 (Hora GT)",
+    "horas": 0.6370511400000001,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "516346.91 E, 1970733.03 N",
+    "dist_info": "843 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.86913,
+    "lon": -90.38912,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "22/04/2026 15:18 (Hora GT)",
+    "horas": 0.6370652791666667,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "511749.03 E, 1976105.48 N",
+    "dist_info": "6268 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  }
+]
