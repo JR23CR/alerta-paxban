@@ -1,0 +1,30 @@
+[
+  {
+    "lat": 17.81178,
+    "lon": -90.37321,
+    "color": "red",
+    "alerta": true,
+    "pre_alerta": false,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "27/04/2026 13:19 (Hora GT)",
+    "horas": 0.9131363533333333,
+    "concesion": "Paxb\u00e1n",
+    "gtm": "513439.19 E, 1969760.39 N",
+    "dist_info": null,
+    "dist_campamento": "3743m de La Lagartija al Oeste"
+  },
+  {
+    "lat": 17.81107,
+    "lon": -90.36991,
+    "color": "red",
+    "alerta": true,
+    "pre_alerta": false,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "27/04/2026 13:38 (Hora GT)",
+    "horas": 0.6089599197222222,
+    "concesion": "Paxb\u00e1n",
+    "gtm": "513789.03 E, 1969682.07 N",
+    "dist_info": null,
+    "dist_campamento": "3396m de La Lagartija al Oeste"
+  }
+]
