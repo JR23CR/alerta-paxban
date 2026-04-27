@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.55139,
+    "lon": -90.44219,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "27/04/2026 15:12 (Hora GT)",
+    "horas": 0.7834701069444444,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "506136.43 E, 1940943.41 N",
+    "dist_info": "8858 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  }
+]
