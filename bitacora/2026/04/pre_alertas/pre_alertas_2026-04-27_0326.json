@@ -1,0 +1,72 @@
+[
+  {
+    "lat": 17.74385,
+    "lon": -90.41872,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "27/04/2026 02:09 (Hora GT)",
+    "horas": 1.2743795294444447,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "508618.58 E, 1962240.86 N",
+    "dist_info": "3834 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.74461,
+    "lon": -90.42274,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "27/04/2026 02:09 (Hora GT)",
+    "horas": 1.2743850152777776,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "508192.28 E, 1962324.78 N",
+    "dist_info": "4258 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.83765,
+    "lon": -90.26966,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "27/04/2026 02:09 (Hora GT)",
+    "horas": 1.2744039130555556,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "524411.55 E, 1972633.55 N",
+    "dist_info": "2537 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.83856,
+    "lon": -90.26922,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "27/04/2026 02:28 (Hora GT)",
+    "horas": 0.9657618641666667,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "524458.06 E, 1972734.31 N",
+    "dist_info": "2637 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.8409,
+    "lon": -90.27177,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "27/04/2026 02:28 (Hora GT)",
+    "horas": 0.9657675644444443,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "524187.49 E, 1972992.91 N",
+    "dist_info": "2900 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  }
+]
