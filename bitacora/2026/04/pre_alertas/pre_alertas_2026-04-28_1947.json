@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.55,
+    "lon": -90.2,
+    "color": "orange",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "SIMULACRO",
+    "fecha": "28/04/2026 19:47",
+    "horas": 1,
+    "concesion": "Zona de Amortiguamiento",
+    "gtm": "531844.85 E, 1940813.81 N",
+    "dist_info": "11836 metros del l\u00edmite Sureste",
+    "dist_campamento": "N/A"
+  }
+]

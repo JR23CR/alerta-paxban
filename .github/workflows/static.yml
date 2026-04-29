@@ -139,7 +139,10 @@ jobs:
           
           # 1. SIEMPRE guardar datos en tiempo real (Mapa Web)
           [ -f "incendios.json" ] && git add -f incendios.json
+          [ -f "anomalias.geojson" ] && git add -f anomalias.geojson
           [ -f "metadata.json" ] && git add -f metadata.json
+          [ -d "paxban" ] && git add paxban/
+          [ -f "historial_incendios.sqlite" ] && git add -f historial_incendios.sqlite
 
           # 2. SIEMPRE guardar la bitácora si se generó, es crucial para el reporte mensual
           [ -d "bitacora" ] && git add bitacora/

@@ -3,3 +3,9 @@ shapely
 pyproj
 matplotlib
 contextily
+python-dotenv
+python-docx
+xyzservices
+pillow
+numpy
+opencv-python-headless

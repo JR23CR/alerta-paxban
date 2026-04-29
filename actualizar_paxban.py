@@ -12,6 +12,32 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
 from email.mime.application import MIMEApplication
+from email.header import Header
+from pathlib import Path
+
+# Nuevos Módulos Profesionales
+try:
+    from paxban.logger import logger
+    from paxban.db import guardar_focos_historicos
+except ImportError:
+    # Fallback si el script se corre desde otro directorio
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from paxban.logger import logger
+    from paxban.db import guardar_focos_historicos
+
+try:
+    from dotenv import load_dotenv
+    # Cargar .env desde el directorio del script
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    env_file = os.path.join(base_path, '.env')
+    if os.path.exists(env_file):
+        load_dotenv(env_file)
+        print(f"OK: Archivo .env cargado desde: {env_file}")
+    else:
+        print(f"ADVERTENCIA: Archivo .env no encontrado en: {env_file}")
+except ImportError:
+    print(" python-dotenv no est instalado. Instlalo con: pip install python-dotenv")
+    pass
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -31,7 +57,7 @@ try:
     from pyproj import Transformer
 except ImportError:
     Transformer = None
-    print("⚠️ Advertencia: pyproj no está instalado. No se generarán mapas ni coordenadas GTM.", file=sys.stderr)
+    print(" Advertencia: pyproj no est instalado. No se generarn mapas ni coordenadas GTM.", file=sys.stderr)
 
 try:
     from docx import Document
@@ -39,7 +65,7 @@ try:
     from docx.enum.text import WD_ALIGN_PARAGRAPH
 except ImportError:
     Document = None
-    print("⚠️ Advertencia: python-docx no está instalado. No se generará el informe Word.", file=sys.stderr)
+    print(" Advertencia: python-docx no est instalado. No se generar el informe Word.", file=sys.stderr)
 
 MAP_KEY = "1f5837a949e2dff8572d9bb96df86898"
 
@@ -170,20 +196,20 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Paxban", imagen_mapa=N
     RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL")
 
     if not all([SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, RECIPIENT_EMAIL]):
-        print("❌ Error: Faltan credenciales de correo. Revise los Secrets de GitHub.", file=sys.stderr)
+        print(" Error: Faltan credenciales de correo. Revise los Secrets de GitHub.", file=sys.stderr)
         return
 
     destinatarios = [email.strip() for email in RECIPIENT_EMAIL.split(',') if email.strip()]
     fecha_hora = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
     asunto_completo = f"{asunto} - {fecha_hora}"
 
-    print(f"📧 Enviando correo a: {', '.join(destinatarios)}")
+    print(f" Enviando correo a: {', '.join(destinatarios)}")
     
     try:
         msg = MIMEMultipart()
         msg['From'] = SMTP_USER
         msg['To'] = ", ".join(destinatarios)
-        msg['Subject'] = asunto_completo
+        msg['Subject'] = Header(asunto_completo, 'utf-8')
         
         msg.attach(MIMEText(cuerpo_html, 'html', 'utf-8'))
         
@@ -194,7 +220,7 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Paxban", imagen_mapa=N
                 logo_img.add_header('Content-ID', '<logo_paxban>')
                 msg.attach(logo_img)
         except FileNotFoundError:
-            print("⚠️ Advertencia: No se encontró logo (2).png. El correo se enviará sin logo.", file=sys.stderr)
+            print(" Advertencia: No se encontr logo (2).png. El correo se enviará sin logo.", file=sys.stderr)
 
         if imagen_mapa:
             img = MIMEImage(imagen_mapa)
@@ -212,19 +238,21 @@ def enviar_correo_alerta(cuerpo_html, asunto="🔥 Alerta Paxban", imagen_mapa=N
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.send_message(msg)
-        print("✅ Correo enviado exitosamente.")
+        print(" Correo enviado exitosamente.")
     except Exception as e:
-        print(f"❌ Error enviando correo: {e}", file=sys.stderr)
+        print(f" Error enviando correo: {e}", file=sys.stderr)
 
 def enviar_alerta_telegram(mensaje, imagen_bytes=None):
     """Envía mensaje a Telegram."""
     BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
     CHAT_IDS_RAW = os.environ.get("TELEGRAM_CHAT_ID")
 
-    if not all([BOT_TOKEN, CHAT_IDS_RAW]):
+    if not all([BOT_TOKEN, CHAT_IDS_RAW]) or "TU_BOT_TOKEN" in str(BOT_TOKEN):
+        print("ADVERTENCIA Telegram: No se enviara alerta (Falta configuracion en .env o el token es el de ejemplo)")
         return
     
     chat_ids = [cid.strip() for cid in CHAT_IDS_RAW.split(',') if cid.strip()]
+    print(f"ENVIANDO alerta a Telegram ({len(chat_ids)} chats)...")
 
     for chat_id in chat_ids:
         api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/"
@@ -245,7 +273,7 @@ def enviar_alerta_telegram(mensaje, imagen_bytes=None):
             else:
                 requests.post(api_url, json=data, timeout=10)
         except Exception as e:
-            print(f"⚠️ Error Telegram ({chat_id}): {e}", file=sys.stderr)
+            print(f" Error Telegram ({chat_id}): {e}", file=sys.stderr)
 
 def guardar_mapa_local(imagen_bytes):
     """Guarda el mapa en la carpeta mapa_reporte_diario."""
@@ -256,7 +284,7 @@ def guardar_mapa_local(imagen_bytes):
     os.makedirs(carpeta, exist_ok=True)
     ruta = os.path.join(carpeta, f"Mapa_Calor_{fecha_dt.strftime('%Y-%m-%d')}.png")
     with open(ruta, "wb") as f: f.write(imagen_bytes)
-    print(f"💾 Mapa guardado: {ruta}")
+    print(f" Mapa guardado: {ruta}")
 
 def guardar_bitacora(imagen_bytes, tipo, datos_puntos):
     """Guarda evidencia en bitácora."""
@@ -273,7 +301,7 @@ def limpiar_descargas_antiguas():
     """Elimina carpetas de meses con formato numérico si existe el formato nombre."""
     if not os.path.exists("descargas"): return
     
-    print("🧹 Limpiando carpetas duplicadas en descargas...")
+    print(" Limpiando carpetas duplicadas en descargas...")
     for anio in os.listdir("descargas"):
         anio_path = os.path.join("descargas", anio)
         if not os.path.isdir(anio_path): continue
@@ -286,7 +314,7 @@ def limpiar_descargas_antiguas():
                     mes_num = item.zfill(2)
                     mes_nombre = MESES_ES.get(mes_num)
                     if mes_nombre and os.path.exists(os.path.join(anio_path, mes_nombre)):
-                        print(f"🗑️ Borrando duplicado obsoleto: {item_path}")
+                        print(f" Borrando duplicado obsoleto: {item_path}")
                         shutil.rmtree(item_path, ignore_errors=True)
 
 def descargar_puntos_historicos(fecha_inicio, fecha_fin):
@@ -305,7 +333,7 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
     satelites = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT"]
     headers = {"User-Agent": "PaxbanBot/1.0"}
     
-    print(f"📡 Descargando historial regional del {fecha_inicio} al {fecha_fin}...")
+    print(f" Descargando historial regional del {fecha_inicio} al {fecha_fin}...")
     
     hoy = datetime.utcnow().date()
     
@@ -350,7 +378,7 @@ def descargar_puntos_historicos(fecha_inicio, fecha_fin):
                             })
                         except: pass
             except requests.exceptions.ConnectionError:
-                print("⚠️ Error de conexión detectado. Deteniendo descarga histórica para evitar bloqueos.")
+                print(" Error de conexin detectado. Deteniendo descarga histrica para evitar bloqueos.")
                 return puntos
             except: pass
             time.sleep(0.1) # Evitar saturación
@@ -409,13 +437,13 @@ def generar_galeria_html():
                         
                         # Evitar duplicados por mes (preferir nombre de archivo más largo ej: 01 vs 1)
                         if key in reportes_dict:
-                            print(f"🔹 Unificando reporte duplicado: {file} se agrupa bajo {key}")
+                            print(f" Unificando reporte duplicado: {file} se agrupa bajo {key}")
                             
                         if key not in reportes_dict or len(file) > len(reportes_dict[key]['filename']):
                             reportes_dict[key] = {"url": url, "nombre": nombre_mostrar, "filename": file}
         
         reportes_mensuales = list(reportes_dict.values())
-        print(f"📦 Se encontraron {len(reportes_mensuales)} reportes mensuales.")
+        print(f" Se encontraron {len(reportes_mensuales)} reportes mensuales.")
         # Ordenar por nombre de archivo original para mantener orden cronológico
         reportes_mensuales.sort(key=lambda x: x['filename'], reverse=True)
 
@@ -454,9 +482,9 @@ def generar_galeria_html():
         html += "</div></div></body></html>"
         
         with open("reportes.html", "w", encoding="utf-8") as f: f.write(html)
-        print("✅ Galería HTML generada.")
+        print("OK: Galera HTML generada.")
     except Exception as e:
-        print(f"❌ Error generando galería: {e}", file=sys.stderr)
+        print(f" Error generando galera: {e}", file=sys.stderr)
 
 def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1, basemap_provider=cx.providers.Esri.NatGeoWorldMap, is_pre_alert_map=False, draw_buffer=False):
     """Genera imagen PNG del mapa."""
@@ -465,13 +493,12 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
         xs, ys, colores = [], [], []
 
-        # Buscar el polígono de Paxbán para usarlo después
-        paxban_poly = None
+        # Buscar polígonos para el mapa
+        concesiones_monitoreo = {}
         if concesiones:
             for nombre, poly in concesiones.items():
-                if "Paxbán" in nombre:
-                    paxban_poly = poly
-                    break
+                if "Paxbán" in nombre or "Afisap" in nombre:
+                    concesiones_monitoreo[nombre] = poly
 
         for p in puntos:
             x, y = transformer.transform(p['lon'], p['lat'])
@@ -491,15 +518,17 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
                     ax.plot(x_b, y_b, color='orange', linestyle='--', linewidth=2, zorder=1)
         
         if concesiones:
-            if paxban_poly:
-                poly_3857 = transform(transformer.transform, paxban_poly)
+            for nombre, poly in concesiones_monitoreo.items():
+                is_paxban = "Paxbán" in nombre
+                color = '#2e7d32' if is_paxban else '#1565c0'
+                poly_3857 = transform(transformer.transform, poly)
                 if poly_3857.geom_type == 'Polygon':
                     x, y = poly_3857.exterior.xy
-                    ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
+                    ax.plot(x, y, color=color, linewidth=2, zorder=1)
                 elif poly_3857.geom_type == 'MultiPolygon':
-                    for p in poly_3857.geoms:
-                        x, y = p.exterior.xy
-                        ax.plot(x, y, color='#2e7d32', linewidth=2, zorder=1)
+                    for p_sub in poly_3857.geoms:
+                        x, y = p_sub.exterior.xy
+                        ax.plot(x, y, color=color, linewidth=2, zorder=1)
 
         if xs: ax.scatter(xs, ys, c=colores, s=50, edgecolors='white', zorder=2)
 
@@ -540,21 +569,24 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
         try:
             cx.add_basemap(ax, crs="EPSG:3857", source=basemap_provider, attribution=False)
         except Exception as e:
-            print(f"⚠️ Advertencia: No se pudo descargar el mapa base ({e}). Se generará sin fondo.", file=sys.stderr)
+            print(f" Advertencia: No se pudo descargar el mapa base ({e}). Se generará sin fondo.", file=sys.stderr)
             
         ax.set_axis_off()
 
         if draw_buffer:
             buffer_line = Line2D([0], [0], color='orange', lw=2, linestyle='--', label='Zona de Amortiguamiento (10km)')
-            paxban_line = Line2D([0], [0], color='#2e7d32', lw=2, label='Límite Concesión Paxbán')
-            ax.legend(handles=[paxban_line, buffer_line], loc='upper right', frameon=True, facecolor='white', framealpha=0.8)
+            handles = [buffer_line]
+            for nombre in concesiones_monitoreo:
+                color = '#2e7d32' if "Paxbán" in nombre else '#1565c0'
+                handles.append(Line2D([0], [0], color=color, lw=2, label=f'Límite {nombre}'))
+            ax.legend(handles=handles, loc='upper right', frameon=True, facecolor='white', framealpha=0.8)
         
         buf = BytesIO()
         plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
         buf.seek(0); plt.close(fig)
         return buf.read()
     except Exception as e:
-        print(f"⚠️ Error generando mapa: {e}", file=sys.stderr)
+        print(f" Error generando mapa: {e}", file=sys.stderr)
         return None
 
 def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, concesiones=None, pre_alerts_list=None):
@@ -747,7 +779,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 run_map = p_map.add_run()
                 run_map.add_picture(BytesIO(buffer_map_bytes), width=Inches(5.0))
         except Exception as e:
-            print(f"⚠️ Error generando mapa de zona de amortiguamiento: {e}")
+            print(f" Error generando mapa de zona de amortiguamiento: {e}")
 
         if pre_alerts_list:
             doc.add_heading('3.3. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
@@ -842,11 +874,11 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
 
         doc.save(ruta_salida)
     except Exception as e:
-        print(f"⚠️ Error creando Word: {e}", file=sys.stderr)
+        print(f" Error creando Word: {e}", file=sys.stderr)
 
 def generar_reporte_mensual(concesiones):
     """Genera ZIP mensual."""
-    print("📦 Iniciando generación de Reporte Mensual...")
+    print(" Iniciando generacin de Reporte Mensual...")
     try:
         fecha_dt = datetime.utcnow() - timedelta(hours=6)
         # Permitir especificar mes y año vía variables de entorno para reportes retroactivos
@@ -871,7 +903,7 @@ def generar_reporte_mensual(concesiones):
         
         for src in fuentes:
             if os.path.exists(src):
-                print(f"📂 Copiando mapas desde: {src}")
+                print(f" Copiando mapas desde: {src}")
                 for f in os.listdir(src):
                     if f.endswith(".png"):
                         # --- FILTRO DE SEGURIDAD DE ARCHIVOS ---
@@ -884,7 +916,7 @@ def generar_reporte_mensual(concesiones):
         # En lugar de depender de las bitácoras (que pudieron no guardarse),
         # se descarga el historial completo del mes y se reclasifica cada punto.
         # Esto asegura que el reporte mensual sea siempre la fuente de verdad.
-        print("🔎 Recalculando todos los eventos del mes desde el historial de NASA FIRMS para máxima precisión...")
+        print(" Recalculando todos los eventos del mes desde el historial de NASA FIRMS para mxima precisin...")
         fires_details = []
         pre_alerts_details = []
 
@@ -900,13 +932,15 @@ def generar_reporte_mensual(concesiones):
             en_prealerta = False
             
             for nom, poly in concesiones.items():
-                if "Paxbán" in nom:
+                if "Paxbán" in nom or "Afisap" in nom:
                     if poly.contains(p):
                         en_paxban = True
+                        punto['concesion_afectada'] = nom
                         punto['dist_campamento'] = calcular_campamento_cercano(punto['lon'], punto['lat'])
                         break
                     elif poly.distance(p) < 0.09: # Buffer de 10km
                         en_prealerta = True
+                        punto['concesion_cercana'] = nom
                         punto['dist_info'] = calcular_distancia_direccion(p, poly)
             
             if en_paxban:
@@ -946,7 +980,7 @@ def generar_reporte_mensual(concesiones):
                 # Descargar DATOS REALES de la región para esa semana
                 puntos_semana = [p for p in puntos_del_mes if f_inicio <= p['fecha_simple'] <= f_fin]
             
-                print(f"🗺️ Generando Reporte de Monitoreo Semana {i+1} ({len(puntos_semana)} puntos regionales)...")
+                print(f" Generando Reporte de Monitoreo Semana {i+1} ({len(puntos_semana)} puntos regionales)...")
                 img_bytes = generar_mapa_imagen(puntos_semana, concesiones)
                 
                 if img_bytes:
@@ -956,7 +990,7 @@ def generar_reporte_mensual(concesiones):
                         f.write(img_bytes)
                     map_images_paths.append(ruta_archivo)
             except Exception as e:
-                print(f"⚠️ Error procesando semana {i+1}: {e}")
+                print(f" Error procesando semana {i+1}: {e}")
 
         # Generar Word con el nuevo formato
         crear_informe_word(
@@ -977,7 +1011,7 @@ def generar_reporte_mensual(concesiones):
         shutil.move(f"{zip_filename}.zip", ruta_final)
         shutil.rmtree(raiz)
         
-        print(f"✅ ZIP creado: {ruta_final}")
+        print(f" ZIP creado: {ruta_final}")
         
         with open(ruta_final, "rb") as f: zip_bytes = f.read()
         
@@ -1028,7 +1062,7 @@ def generar_reporte_mensual(concesiones):
         enviar_correo_alerta(cuerpo, asunto=f"Reporte Mensual {nombre_mes} {anio}", archivo_zip=(f"{zip_filename}.zip", zip_bytes))
         
     except Exception as e:
-        print(f"❌ Error CRÍTICO en reporte mensual: {e}", file=sys.stderr)
+        print(f" Error CRTICO en reporte mensual: {e}", file=sys.stderr)
         traceback.print_exc()
 
 def cargar_concesiones():
@@ -1037,7 +1071,7 @@ def cargar_concesiones():
             data = json.load(f)
         
         if not Transformer:
-            print("⚠️ Pyproj no disponible, no se puede aplicar desplazamiento al polígono.")
+            print(" Pyproj no disponible, no se puede aplicar desplazamiento al polgono.")
             return {f['properties'].get('Name', 'X'): shape(f['geometry']) for f in data['features']}
 
         concesiones_dict = {}
@@ -1049,7 +1083,7 @@ def cargar_concesiones():
             name = f['properties'].get('Name', 'X')
             
             if "Paxbán" in name:
-                print("🏗️ Aplicando desplazamiento de 100m al Norte al polígono de Paxbán para todos los cálculos...")
+                print(" Aplicando desplazamiento de 100m al Norte al polgono de Paxbn para todos los clculos...")
                 poly_gtm = transform(trans_to_gtm.transform, poly)
                 def shift_north(x, y, z=None):
                     return x, y + 100
@@ -1059,11 +1093,11 @@ def cargar_concesiones():
             concesiones_dict[name] = poly
         return concesiones_dict
     except Exception as e:
-        print(f"⚠️ Error cargando concesiones: {e}", file=sys.stderr)
+        print(f" Error cargando concesiones: {e}", file=sys.stderr)
         return {}
 
 def main():
-    print("🚀 Iniciando sistema Paxban...")
+    logger.info("START: Iniciando sistema Paxban...")
     concesiones = cargar_concesiones()
     action_type = os.environ.get("ACTION_TYPE", "monitor")
     
@@ -1071,7 +1105,7 @@ def main():
     
     # --- LÓGICA DE PRUEBAS (SIMULACROS) ---
     if action_type.startswith("test_"):
-        print(f"🧪 MODO PRUEBA ACTIVADO: {action_type}")
+        print(f" MODO PRUEBA ACTIVADO: {action_type}")
         fecha_sim = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
         
         if action_type == "test_incendio":
@@ -1122,7 +1156,7 @@ def main():
         }
         for sat in satelites:
             try:
-                print(f"⬇️ Descargando datos de {sat}...")
+                print(f"INFO: Descargando datos de {sat}...")
                 url = f"https://firms.modaps.eosdis.nasa.gov/api/area/csv/{MAP_KEY}/{sat}/-94,13.5,-88,20/3"
                 res = session.get(url, headers=headers, timeout=20)
                 if res.status_code == 200:
@@ -1142,16 +1176,16 @@ def main():
                             dist_info = None
                             
                             for nom, poly in concesiones.items():
-                                if "Paxbán" in nom:
+                                if "Paxbán" in nom or "Afisap" in nom:
                                     if poly.contains(p):
                                         en_paxban = True
-                                        concesion_nombre = "Paxbán"
+                                        concesion_nombre = nom
                                         dist_campamento_str = calcular_campamento_cercano(lon, lat)
                                         break
                                     # Buffer aproximado de 10km (0.09 grados)
                                     elif poly.distance(p) < 0.09:
                                         en_prealerta = True
-                                        concesion_nombre = "Zona de Amortiguamiento"
+                                        concesion_nombre = f"Cerca de {nom}"
                                         dist_info = calcular_distancia_direccion(p, poly)
                             
                             # Calcular antigüedad
@@ -1177,14 +1211,14 @@ def main():
                             })
                         except: pass
             except requests.exceptions.ConnectionError:
-                print(f"⛔ Error de conexión con {sat}. Internet inestable o servidor caído.")
-                print("⚠️ Saltando satélites restantes para evitar demoras innecesarias.")
+                print(f" Error de conexin con {sat}. Internet inestable o servidor cado.")
+                print(" Saltando satlites restantes para evitar demoras innecesarias.")
                 break
             except Exception as e:
-                print(f"⚠️ Error descargando {sat}: {e}", file=sys.stderr)
+                print(f" Error descargando {sat}: {e}", file=sys.stderr)
 
         if not puntos:
-            print("⚠️ Advertencia: No se encontraron datos de incendios en el área seleccionada.")
+            print(" Advertencia: No se encontraron datos de incendios en el rea seleccionada.")
 
     # Guardar Metadatos de Actualización (Hora)
     fecha_actual = (datetime.utcnow() - timedelta(hours=6)).strftime("%d/%m/%Y %H:%M")
@@ -1194,9 +1228,47 @@ def main():
     # Guardar JSON para la web
     with open('incendios.json', 'w') as f: json.dump(puntos, f)
     
-    # Solo alertar sobre puntos detectados en las últimas 1.5 horas para evitar duplicados en ejecuciones horarias
-    alertas = [p for p in puntos if p['alerta'] and p['horas'] <= 1.5]
-    pre_alertas = [p for p in puntos if p.get('pre_alerta') and p['horas'] <= 1.5]
+    # --- NUEVA FUNCIONALIDAD: BD HISTÓRICA ---
+    guardar_focos_historicos(puntos)
+    
+    # --- SISTEMA INTELIGENTE ANTI-SPAM (Memoria de Alertas) ---
+    archivo_memoria = "paxban/historial_alertas.json"
+    if os.path.exists(archivo_memoria):
+        try:
+            with open(archivo_memoria, "r") as f:
+                alertas_enviadas = json.load(f)
+        except:
+            alertas_enviadas = []
+    else:
+        alertas_enviadas = []
+        os.makedirs("paxban", exist_ok=True)
+
+    alertas_nuevas = []
+    pre_alertas_nuevas = []
+    
+    # Evaluar todos los puntos sin importar cuántas horas hayan pasado
+    for p in puntos:
+        # ID único del incendio basado en ubicación y fecha exacta
+        fire_id = f"{p['lat']:.4f}_{p['lon']:.4f}_{p['fecha']}"
+        
+        if p.get('alerta'):
+            if fire_id not in alertas_enviadas:
+                alertas_nuevas.append(p)
+                alertas_enviadas.append(fire_id)
+        elif p.get('pre_alerta'):
+            if fire_id not in alertas_enviadas:
+                pre_alertas_nuevas.append(p)
+                alertas_enviadas.append(fire_id)
+
+    # Mantener el archivo de memoria ligero (guardar solo los últimos 2000 incendios)
+    if len(alertas_enviadas) > 2000:
+        alertas_enviadas = alertas_enviadas[-2000:]
+        
+    with open(archivo_memoria, "w") as f:
+        json.dump(alertas_enviadas, f)
+
+    alertas = alertas_nuevas
+    pre_alertas = pre_alertas_nuevas
     force_report = os.environ.get("FORCE_REPORT", "false") == "true"
     
     # Generar mapa si es necesario
@@ -1211,8 +1283,8 @@ def main():
     
     # 1. ALERTA ROJA (Incendio DENTRO de Paxbán)
     if alertas:
-        msg = f"🔥 <b>ALERTA PAXBAN</b>\n"
-        msg += f"<b>Se detectaron {len(alertas)} incendios activos.</b>\n"
+        msg = f"🔥 <b>ALERTA DE INCENDIO</b>\n"
+        msg += f"<b>Se detectaron {len(alertas)} focos activos.</b>\n"
         for i, p in enumerate(alertas):
             msg += f"\n🔴 <b>Foco {i+1}:</b>"
             msg += f"\n📍 {p['lat']:.5f}, {p['lon']:.5f}"
@@ -1285,9 +1357,9 @@ def main():
         
     # 2. PRE-ALERTA AMARILLA (Incendio CERCA de Paxbán)
     elif pre_alertas:
-        print(f"📧 Enviando Pre-Alerta por {len(pre_alertas)} focos...")
-        msg = f"⚠️ <b>PRE-ALERTA PAXBAN</b>\n"
-        msg += f"<b>Actividad en zona de amortiguamiento ({len(pre_alertas)} focos).</b>\n"
+        print(f" Enviando Pre-Alerta por {len(pre_alertas)} focos...")
+        msg = f"⚠️ <b>PRE-ALERTA DE INCENDIO</b>\n"
+        msg += f"<b>Actividad en zona de monitoreo ({len(pre_alertas)} focos).</b>\n"
         for i, p in enumerate(pre_alertas):
             msg += f"\n🟠 <b>Foco {i+1}:</b>"
             if p.get('dist_info'):
@@ -1356,13 +1428,25 @@ def main():
         es_generacion_mensual = action_type == "reporte_mensual"
         
         if not es_reporte_programado and not es_generacion_mensual:
-            # Mensaje Telegram
-            msg = f"🛰️ <b>Reporte de Monitoreo Satelital</b>\n\n" \
-                  f"✅ <b>Estado: Sin Amenazas Detectadas</b>\n" \
-                  f"No se han identificado focos activos dentro de las concesiones.\n\n" \
-                  f"📍 Puntos analizados: {len(puntos)}\n" \
+            # Analizar situación actual
+            puntos_cerca = [p for p in puntos if p.get('pre_alerta')]
+            puntos_dentro = [p for p in puntos if p.get('alerta')]
+            
+            msg = f"🛰️ <b>Reporte de Monitoreo Satelital</b>\n\n"
+            if puntos_dentro:
+                msg += f"🔴 <b>Estado: INCENDIO ACTIVO</b>\n"
+                msg += f"Se detectaron {len(puntos_dentro)} focos dentro de las concesiones.\n"
+            elif puntos_cerca:
+                msg += f"⚠️ <b>Estado: VIGILANCIA PERIMETRAL</b>\n"
+                msg += f"No hay focos dentro, pero se detectaron {len(puntos_cerca)} puntos en la zona de amortiguamiento (10km).\n"
+            else:
+                msg += f"✅ <b>Estado: SIN AMENAZAS</b>\n"
+                msg += f"No se han identificado focos activos en las concesiones ni en el perímetro.\n"
+            
+            msg += f"\n📍 Puntos analizados: {len(puntos)}\n" \
                   f"🕒 Hora: {fecha_hora}\n\n" \
-                  f"Sistema de Alerta Temprana Paxban"
+                  f"📋 Razón: {razon}\n"
+            
             enviar_alerta_telegram(msg, img_bytes)
         
         # HTML Correo (Tu diseño)
@@ -1433,11 +1517,43 @@ def main():
         if not es_reporte_programado and not es_generacion_mensual:
             enviar_correo_alerta(html, asunto="Reporte de Monitoreo Satelital", imagen_mapa=img_bytes)
         else:
-            print("ℹ️ Reporte diario procesado (Mapa guardado), pero se omite el envío de correo (Programado o Mensual).")
+            print(" Reporte diario procesado (Mapa guardado), pero se omite el envío de correo (Programado o Mensual).")
 
     # Reporte Mensual si se solicita
     if os.environ.get("ACTION_TYPE") == "reporte_mensual":
         generar_reporte_mensual(concesiones)
+
+    # --- INYECCIÓN DE IA COPÉRNICUS ---
+    try:
+        print("🤖 Iniciando escáner de Anomalías Forestales (Botados)...")
+        from paxban.anomaly_detector import AnomalyDetector
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        client_id = os.environ.get("COPERNICUS_CLIENT_ID")
+        client_secret = os.environ.get("COPERNICUS_CLIENT_SECRET")
+        if client_id and client_secret:
+            detector = AnomalyDetector(client_id, client_secret)
+            resultado = detector.check_for_deforestation()
+            print(f"🌲 Resultado IA: {resultado['mensaje']}")
+            
+            # Enviar alerta por Telegram si hay anomalías detectadas por IA
+            if resultado["status"] == "DANGER":
+                msg_ia = f"⚠️ <b>¡ALERTA DE INTELIGENCIA ARTIFICIAL!</b>\n\n"
+                msg_ia += f"<b>Tipo:</b> {resultado['tipo']}\n"
+                msg_ia += f"<b>Ubicación aprox:</b> {resultado['coordenadas']}\n"
+                msg_ia += f"<b>Área afectada estimada:</b> {resultado['area_ha']} Hectáreas\n\n"
+                msg_ia += "🚨 Se han marcado círculos rojos en la página web. <b>Se requiere verificación visual inmediata en el Lente Infrarrojo.</b>"
+                
+                try:
+                    enviar_alerta_telegram(msg_ia, None) # Envia mensaje al grupo de emergencias
+                except Exception as e:
+                    print("No se pudo alertar a Telegram de la IA:", e)
+        else:
+            print("⚠️ No se encontró COPERNICUS_INSTANCE_ID, saltando detección de IA.")
+    except Exception as e:
+        print("⚠️ Error en escáner de IA:", e)
+    # ----------------------------------
 
     # Generar Galería SIEMPRE (Al final para incluir el reporte mensual si se generó)
     limpiar_descargas_antiguas()
@@ -1448,7 +1564,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print("❌ ERROR FATAL EN EL SCRIPT:", file=sys.stderr)
+        print(" ERROR FATAL EN EL SCRIPT:", file=sys.stderr)
         traceback.print_exc()
         # No salimos con error para permitir que GitHub Pages intente desplegar lo que haya
         sys.exit(0) 

@@ -3,411 +3,551 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paxban - Monitoreo de Incendios</title>
+    <title>Sistema de Alerta Temprana - JR23CR</title>
+    <!-- Bootstrap & Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Leaflet & Plugins -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
     <style>
         :root {
-            --paxban-green: #1b5e20;
-            --paxban-light-green: #f1f8e9;
-            --paxban-accent: #2e7d32;
+            --primary: #1b5e20;
+            --accent: #ff9800;
         }
-        body, html { height: 100%; margin: 0; font-family: 'Inter', 'Segoe UI', sans-serif; overflow: hidden; background-color: #f8f9fa; }
+
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background-color: #111;
+        }
+
+        /* Contenedores Principales */
+        #map { height: 100vh; width: 100vw; z-index: 1; }
         
-        .header-dash {
-            background: linear-gradient(90deg, var(--paxban-green) 0%, #2e7d32 100%);
-            color: white;
-            padding: 12px 25px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1030;
-            position: relative;
-        }
-
-        .dashboard-wrapper { height: calc(100vh - 56px); }
-
-        .sidebar {
-            width: 250px;
-            background: var(--paxban-light-green);
-            border-right: 1px solid #c8e6c9;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
+        #iframe-container {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
             z-index: 1000;
+            background: #fff;
+            display: none;
+        }
+        #content-frame { width: 100%; height: 100%; border: none; }
+
+        /* Botón de Menú Flotante (Hamburguesa) */
+        .menu-btn {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            z-index: 2000;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid rgba(0,0,0,0.2);
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .menu-btn:hover { background: #fff; transform: scale(1.05); }
+        .menu-btn i { font-size: 1.5rem; color: #333; }
+
+        /* Título Flotante */
+        .brand-floating {
+            position: absolute;
+            top: 15px;
+            left: 80px;
+            z-index: 2000;
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(5px);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            pointer-events: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .nav-section-title {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: #666;
-            margin-bottom: 15px;
-            font-weight: 700;
-        }
-
-        .btn-nav {
+        /* Estilos del Offcanvas (Menú Lateral) */
+        .offcanvas { background-color: #1e293b; color: white; width: 320px !important; }
+        .offcanvas-header { border-bottom: 1px solid #334155; }
+        
+        .menu-section { margin-bottom: 25px; }
+        .menu-title { font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 10px; font-weight: bold; }
+        
+        .nav-button {
             width: 100%;
             text-align: left;
+            background: transparent;
             border: none;
-            background: white;
-            margin-bottom: 12px;
-            padding: 12px 15px;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: #444;
-            font-weight: 500;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: #f8fafc;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            transition: 0.2s;
         }
+        .nav-button:hover { background: rgba(255,255,255,0.1); }
+        .nav-button.active { background: var(--primary); color: white; }
+        .nav-button i { margin-right: 10px; width: 20px; text-align: center; }
 
-        .btn-nav:hover {
-            background: #fff;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            color: var(--paxban-green);
-        }
+        /* Switches de Filtro */
+        .form-switch .form-check-input { cursor: pointer; }
+        .form-check-label { cursor: pointer; font-size: 0.9rem; }
 
-        .btn-nav.active {
-            background: var(--paxban-green);
-            color: white;
-            box-shadow: 0 4px 15px rgba(27, 94, 32, 0.3);
-        }
-
-        #map, #iframe-container { flex-grow: 1; height: 100%; width: 100%; }
-        #iframe-container iframe { width: 100%; height: 100%; border: none; }
-
-        .legend {
-            background: white;
-            padding: 12px;
-            line-height: 18px;
-            color: #555;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            border: 1px solid #eee;
-        }
-        .legend i { width: 14px; height: 14px; float: left; margin-right: 8px; opacity: 0.8; border-radius: 50%; }
-
-        /* Estilo para la etiqueta de distancia sobre la línea */
-        .dist-label {
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #000;
-            font-weight: bold;
-            color: #000;
-            padding: 1px 5px;
-            border-radius: 3px;
-            font-size: 11px;
-        }
-
-        /* Estilo para la etiqueta de texto permanente en el centro del polígono */
-        .label-style {
-            background: rgba(255, 255, 255, 0.8);
-            border: 1px solid #2e7d32;
-            color: #1b5e20;
-            font-weight: bold;
+        /* Widget de Coordenadas */
+        .leaflet-control-coordinates {
+            background: rgba(0, 0, 0, 0.7);
+            color: #0f0;
+            font-family: monospace;
+            padding: 5px 10px;
+            border-radius: 4px;
             font-size: 12px;
-            text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
 
-        .filter-control {
-            background: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.2);
-            border: 1px solid #eee;
-            margin-bottom: 10px;
-            font-size: 13px;
-            color: #555;
-        }
-
-        @media (max-width: 768px) {
-            .dashboard-wrapper { flex-direction: column !important; }
-            .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid #dee2e6; padding: 15px; }
-            body { overflow: auto; }
-            #map, #iframe-container { height: 70vh; }
-            .btn-nav { padding: 10px 15px; font-size: 0.9rem; }
-        }
+        .dist-label { background: #fff; border: 1px solid #000; color: #000; font-weight: bold; padding: 1px 4px; font-size: 10px; }
     </style>
 </head>
 <body>
-    <div class="header-dash d-flex justify-content-between align-items-center">
-        <h5 class="m-0 fw-bold"><span class="d-none d-sm-inline">🛰️</span> Sistema de Alerta Temprana Paxban</h5>
-        <div class="d-flex align-items-center gap-3">
-            <span class="text-white small d-none d-md-block" id="last-updated-label" style="opacity: 0.9; font-size: 0.85rem;">Actualizando...</span>
-            <span class="badge bg-white text-success px-3 py-2">● Monitoreo Activo</span>
+
+    <!-- Botón Hamburguesa -->
+    <button class="menu-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mainMenu" aria-controls="mainMenu">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Título Flotante -->
+    <div class="brand-floating d-none d-sm-block">
+        <h6 class="m-0 fw-bold"><i class="bi bi-radar text-success"></i> SISTEMA DE ALERTA TEMPRANA</h6>
+        <small class="text-muted" style="font-size: 0.65rem;">DESARROLLADO POR JR23CR</small>
+    </div>
+
+    <!-- Contenedor del Mapa (Pantalla Completa) -->
+    <div id="map"></div>
+
+    <!-- Contenedor del Iframe (Páginas Secundarias) -->
+    <div id="iframe-container">
+        <iframe id="content-frame" src=""></iframe>
+        <!-- Botón para volver al mapa desde el iframe -->
+        <button onclick="switchPage('map')" class="btn btn-danger position-absolute" style="top: 15px; right: 15px; z-index: 2000; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+            <i class="bi bi-x-lg"></i> Cerrar Vista
+        </button>
+    </div>
+
+    <!-- Menú Desplegable (Offcanvas) -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="mainMenu" aria-labelledby="mainMenuLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title fw-bold" id="mainMenuLabel">Menú Principal</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            
+            <!-- Navegación -->
+            <div class="menu-section">
+                <div class="menu-title">Navegación de Páginas</div>
+                <button class="nav-button active" id="btn-page-map" onclick="switchPage('map')">
+                    <i class="bi bi-globe-americas"></i> Mapa GIS Interactivo
+                </button>
+                <button class="nav-button" id="btn-page-gallery" onclick="switchPage('gallery')">
+                    <i class="bi bi-images"></i> Galería de Reportes
+                </button>
+                <button class="nav-button" onclick="alert('Estadísticas en construcción')">
+                    <i class="bi bi-graph-up"></i> Historial y Datos
+                </button>
+            </div>
+
+            <hr style="border-color: #334155;">
+
+            <!-- Filtros de Polígonos -->
+            <div class="menu-section">
+                <div class="menu-title">Filtros de Polígonos (Capas)</div>
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input bg-success border-success" type="checkbox" id="toggleConcesiones" checked>
+                    <label class="form-check-label" for="toggleConcesiones">Mostrar Todas las Concesiones</label>
+                </div>
+            </div>
+
+            <hr style="border-color: #334155;">
+
+            <!-- Satélite Premium -->
+            <div class="menu-section">
+                <div class="menu-title text-warning"><i class="bi bi-star-fill"></i> Satélite Premium (Alta Resolución)</div>
+                <div class="card bg-dark border-warning mt-2" style="font-size: 0.85rem;">
+                    <div class="card-body p-2">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input bg-warning border-warning" type="checkbox" id="toggleCopernicus">
+                            <label class="form-check-label text-white fw-bold" for="toggleCopernicus">Activar Satélite</label>
+                        </div>
+
+                        <!-- Filtros Analíticos Avanzados (Se muestran al activar el satélite) -->
+                        <div class="mb-2" id="tacticalFilters" style="display: none; border-top: 1px solid #475569; padding-top: 5px;">
+                            <label class="text-warning" style="font-size: 0.75rem; margin-bottom: 3px;"><i class="bi bi-eye"></i> <b>Lente Analítico Táctico:</b></label>
+                            <select class="form-select form-select-sm bg-dark text-white border-secondary" id="copernicusLayerSelect" style="font-size: 0.75rem;">
+                                <option value="TRUE_COLOR">1. Visión Óptica (Color Real)</option>
+                                <option value="FALSE_COLOR">2. Rastreo de Botados (Infrarrojo)</option>
+                                <option value="BAI">3. Cicatrices de Fuego (Burn Index)</option>
+                                <option value="NDVI">4. Salud Forestal (NDVI)</option>
+                            </select>
+                        </div>
+
+                        <p class="text-muted mb-0 mt-2" style="font-size: 0.75rem; line-height: 1.2;">
+                            <i class="bi bi-calendar-check"></i> <b>Fechas del Mosaico:</b><br>
+                            <span id="copernicusDates" class="text-white">Calculando...</span>
+                        </p>
+                        <script>
+                            // Script seguro inline para asegurar que la fecha sí o sí aparezca
+                            setTimeout(function() {
+                                try {
+                                    const tDay = new Date();
+                                    const tPast = new Date();
+                                    tPast.setDate(tPast.getDate() - 30);
+                                    
+                                    const fDate = (d) => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth()+1).padStart(2, '0') + '/' + d.getFullYear();
+                                    document.getElementById('copernicusDates').innerHTML = fDate(tPast) + " al <b>" + fDate(tDay) + "</b>";
+                                } catch(e) {}
+                            }, 500);
+                        </script>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border-color: #334155;">
+
+            <!-- Herramientas GIS -->
+            <div class="menu-section">
+                <div class="menu-title">Herramientas GIS Activas</div>
+                <ul class="text-muted" style="font-size: 0.8rem; padding-left: 20px;">
+                    <li><b>Medición (Líneas y Polígonos):</b> Usa las herramientas de dibujo (arriba a la derecha) para trazar líneas (distancia) o polígonos (área).</li>
+                    <li><b>Coordenadas:</b> Tu mouse rastrea la lat/lon en tiempo real abajo a la izquierda.</li>
+                    <li><b>Capas Base:</b> Usa el control de capas (arriba derecha) para cambiar el mapa de fondo.</li>
+                </ul>
+            </div>
+
         </div>
     </div>
 
-    <div class="dashboard-wrapper d-flex flex-md-row">
-        <!-- Barra Lateral Izquierda -->
-        <aside class="sidebar">
-            <div class="nav-section-title">Navegación Principal</div>
-            <button class="btn-nav active" id="btn-map" onclick="showView('map')">
-                <span>📍</span> Mapa en Tiempo Real
-            </button>
-            <button class="btn-nav" id="btn-gallery" onclick="showView('gallery')">
-                <span>📂</span> Galería de Reportes
-            </button>
-        </aside>
-
-        <!-- Contenido Principal -->
-        <main class="flex-grow-1 position-relative bg-white">
-            <div id="map"></div>
-            <div id="iframe-container" class="d-none">
-                <iframe src="reportes.html" id="gallery-frame"></iframe>
-            </div>
-        </main>
-    </div>
-
-    <script>
-        function showView(view) {
-            const mapDiv = document.getElementById('map');
-            const galleryDiv = document.getElementById('iframe-container');
-            const btnMap = document.getElementById('btn-map');
-            const btnGallery = document.getElementById('btn-gallery');
-            
-            btnMap.classList.remove('active');
-            btnGallery.classList.remove('active');
-            
-            if (view === 'map') {
-                mapDiv.classList.remove('d-none');
-                galleryDiv.classList.add('d-none');
-                btnMap.classList.add('active');
-                // Forzar re-render de Leaflet al volver al mapa
-                setTimeout(() => { map.invalidateSize(); }, 100);
-            } else {
-                mapDiv.classList.add('d-none');
-                galleryDiv.classList.remove('d-none');
-                btnGallery.classList.add('active');
-            }
-        }
-    </script>
-
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+    <!-- Leaflet Geoman Plugin (Reemplaza a leaflet-measure) -->
+    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+
     <script>
-        // --- 1. CONFIGURACIÓN DE MAPAS ---
-        // Usamos National Geographic como base principal
+        // --- 1. LÓGICA DE NAVEGACIÓN (Páginas) ---
+        function switchPage(page) {
+            const mapContainer = document.getElementById('map');
+            const iframeContainer = document.getElementById('iframe-container');
+            const iframe = document.getElementById('content-frame');
+            
+            document.getElementById('btn-page-map').classList.remove('active');
+            document.getElementById('btn-page-gallery').classList.remove('active');
+
+            if (page === 'map') {
+                document.getElementById('btn-page-map').classList.add('active');
+                iframeContainer.style.display = 'none';
+                // Forzar refresco del mapa
+                setTimeout(() => { map.invalidateSize(); }, 200);
+            } else if (page === 'gallery') {
+                document.getElementById('btn-page-gallery').classList.add('active');
+                iframeContainer.style.display = 'block';
+                if (!iframe.src || iframe.src === window.location.href) iframe.src = 'reportes.html';
+                
+                // Ocultar menú si está en móvil
+                const offcanvasElement = document.getElementById('mainMenu');
+                const bsOffcanvas = bootstrap.Offcanvas.getInstance(offcanvasElement);
+                if (bsOffcanvas) bsOffcanvas.hide();
+            }
+        }
+
+        // --- 2. INICIALIZACIÓN DEL MAPA GIS ---
+        // Mapa base predeterminado (National Geographic)
         const natgeo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/NatGeo_World_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri &mdash; National Geographic',
+            attribution: 'Esri &mdash; National Geographic',
             maxZoom: 16
         });
 
-        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
+        const map = L.map('map', {
+            center: [17.2, -90.0],
+            zoom: 9,
+            zoomControl: false, // Lo movemos de lugar
+            layers: [natgeo]    // <-- Mapa predeterminado
         });
 
-        const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
+        // Controles de zoom abajo a la derecha
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        // --- 3. HERRAMIENTAS GIS PROFESIONALES ---
+        // A. Escala del Mapa
+        L.control.scale({ position: 'bottomright', metric: true, imperial: false }).addTo(map);
+
+        // B. Herramientas de Medición Avanzadas (Geoman)
+        map.pm.addControls({
+            position: 'topright',
+            drawMarker: false,
+            drawCircleMarker: false,
+            drawPolyline: true,    // Para medir Líneas (Distancias)
+            drawRectangle: false,
+            drawPolygon: true,     // Para medir Áreas/Polígonos
+            drawCircle: false,
+            drawText: false,
+            editMode: true,        // Reactivado para editar líneas dibujadas
+            dragMode: false,       // Desactivado para que no arrastren sin querer
+            cutPolygon: false,
+            removalMode: true      // Para borrar lo dibujado (ícono de basurero)
+        });
+        
+        // Configurar para que muestre las medidas al dibujar
+        map.pm.setGlobalOptions({ 
+            measurements: { measurement: true, displayFormat: 'metric' },
+            pathOptions: { color: '#ff9800', weight: 3 }
+        });
+
+        // Asegurar que las medidas (distancia/área) se queden permanentemente al terminar de dibujar
+        map.on('pm:create', function(e) {
+            const layer = e.layer;
+            const shape = e.shape;
+            let content = "";
+            
+            try {
+                if (shape === 'Line' || shape === 'Polyline') {
+                    const distanceKm = turf.length(layer.toGeoJSON(), {units: 'kilometers'});
+                    if (distanceKm < 1) {
+                        content = `<b>${(distanceKm * 1000).toFixed(0)} m</b>`;
+                    } else {
+                        content = `<b>${distanceKm.toFixed(2)} km</b>`;
+                    }
+                } else if (shape === 'Polygon' || shape === 'Rectangle') {
+                    const areaSqMeters = turf.area(layer.toGeoJSON());
+                    const hectareas = areaSqMeters / 10000;
+                    const manzanas = areaSqMeters / 6987.2; // Medida estándar en Guatemala
+                    
+                    content = `<div style="text-align: center;">
+                                  <b>${hectareas.toFixed(2)} ha</b><br>
+                                  <span style="font-size: 0.85em; color: #475569;">(${manzanas.toFixed(2)} mz)</span>
+                               </div>`;
+                }
+            } catch(err) {
+                console.error("Error calculando medidas:", err);
+            }
+            
+            if (content) {
+                // Agregar etiqueta permanente en el centro de la línea/polígono
+                layer.bindTooltip(content, { permanent: true, direction: 'center', className: 'dist-label' }).openTooltip();
+            }
+        });
+
+        // C. Rastreador de Coordenadas del Mouse
+        L.Control.Coordinates = L.Control.extend({
+            onAdd: function(map) {
+                this._div = L.DomUtil.create('div', 'leaflet-control-coordinates');
+                this._div.innerHTML = "Lat: 0.00000 | Lon: 0.00000";
+                return this._div;
+            },
+            update: function(latlng) {
+                this._div.innerHTML = `Lat: ${latlng.lat.toFixed(5)} | Lon: ${latlng.lng.toFixed(5)}`;
+            }
+        });
+        const coordControl = new L.Control.Coordinates({ position: 'bottomleft' }).addTo(map);
+        map.on('mousemove', function(e) { coordControl.update(e.latlng); });
+
+        // --- 4. CAPAS BASE SATELITALES ---
+        const darkBasemap = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' });
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' });
+        
+        // NASA GIBS DIARIO
+        const todayStr = new Date().toISOString().split('T')[0];
+        const nasaGibsVIIRS = L.tileLayer(`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/${todayStr}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg`, {
+            attribution: 'NASA GIBS',
+            maxZoom: 9
+        });
+
+        // GOOGLE SATELLITE (Alternativa super confiable y rápida)
+        const googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+            maxZoom: 20,
+            subdomains:['mt0','mt1','mt2','mt3'],
+            attribution: 'Google Maps'
+        });
+
+        // CAPA PREMIUM: SENTINEL-2 (Alta Resolución)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const pastDateStr = thirtyDaysAgo.toISOString().split('T')[0];
+
+        const sentinel2 = L.tileLayer.wms('https://sh.dataspace.copernicus.eu/ogc/wms/65ec5940-af07-42fe-a98f-fc94a034c30f', {
+            layers: 'TRUE_COLOR',
+            format: 'image/jpeg',
+            transparent: false,
+            attribution: '&copy; Copernicus Data Space',
+            maxZoom: 18,
+            time: `${pastDateStr}/${todayStr}`, // Rango para unir los cuadros de satélite
+            maxcc: 20, // Máximo 20% de nubosidad permitida
+            showLogo: false, // Elimina las marcas de agua de Copernicus
+            zIndex: 2
+        });
+
+        // Control del botón Premium y Filtros Tácticos
+        const toggleSat = document.getElementById('toggleCopernicus');
+        const filterDiv = document.getElementById('tacticalFilters');
+        const layerSelect = document.getElementById('copernicusLayerSelect');
+
+        toggleSat.addEventListener('change', function(e) {
+            if (e.target.checked) {
+                map.addLayer(sentinel2);
+                filterDiv.style.display = 'block'; // Mostrar selector de lentes
+            } else {
+                map.removeLayer(sentinel2);
+                filterDiv.style.display = 'none';  // Ocultar selector
+            }
+        });
+
+        // Cambiar dinámicamente la fórmula matemática del satélite (Lente)
+        layerSelect.addEventListener('change', function(e) {
+            const selectedLayer = e.target.value;
+            // setParams actualiza la petición WMS al vuelo sin recargar toda la página
+            sentinel2.setParams({ layers: selectedLayer });
         });
 
         const baseMaps = {
-            "National Geographic": natgeo,
-            "Satélite": satellite,
-            "Mapa Callejero": osm
+            "National Geographic (Defecto)": natgeo,
+            "Mapa Táctico (Oscuro)": darkBasemap,
+            "Satélite Alta Resolución": satellite,
+            "Satélite Google (Muy Rápido)": googleSat,
+            "Satélite Diario (NASA GIBS)": nasaGibsVIIRS
         };
+        L.control.layers(baseMaps, null, {position: 'topright'}).addTo(map);
 
-        const map = L.map('map', {
-            center: [17.2, -90.0], // Centro de Petén
-            zoom: 8,               // Vista general amplia de la región
-            layers: [natgeo]
+        // --- 5. POLÍGONOS Y FILTROS ---
+        let allConcesionesLayer = L.layerGroup().addTo(map);
+        let incendiosLayer = L.layerGroup().addTo(map);
+        
+        let paxbanTurfFeature = null;
+        let afisapTurfFeature = null;
+        let activeLine = null;
+        let allIncendios = [];
+
+        // Cargar GeoJSON de TODAS las concesiones
+        fetch('concesiones1.geojson?t=' + new Date().getTime())
+            .then(res => res.json())
+            .then(data => {
+                data.features.forEach(f => {
+                    const name = f.properties.Name || "Concesión";
+                    const isPaxban = name.toLowerCase().includes("paxb");
+                    const isAfisap = name.toLowerCase().includes("afis");
+                    
+                    if (isPaxban) paxbanTurfFeature = f;
+                    if (isAfisap) afisapTurfFeature = f;
+
+                    const style = { 
+                        color: "#000000", // Línea negra para todos
+                        weight: 2, 
+                        opacity: 1.0, 
+                        fillOpacity: 0.0  // Sin relleno (totalmente transparente)
+                    };
+                    
+                    L.geoJSON(f, { 
+                        style: style, 
+                        pmIgnore: true, // Evita que Geoman edite esta capa
+                        onEachFeature: (f, l) => l.bindPopup(`<b>${name}</b>`) 
+                    }).addTo(allConcesionesLayer);
+                });
+            });
+
+        // Lógica del Switch Único en el Menú
+        document.getElementById('toggleConcesiones').addEventListener('change', function(e) {
+            if (e.target.checked) map.addLayer(allConcesionesLayer);
+            else map.removeLayer(allConcesionesLayer);
         });
 
-        L.control.layers(baseMaps).addTo(map);
-
-        let paxbanFeature = null;
-        let activeLine = null;
-        var incendiosLayer = L.layerGroup().addTo(map);
-        var allIncendios = [];
-
-        // --- 2. CARGAR PAXBAN COMO "FILTRO DE COLOR" ---
-        fetch('concesiones1.geojson?t=' + new Date().getTime())
-            .then(response => response.json())
-            .then(data => {
-                // Buscamos el polígono de Paxbán para cálculos
-                paxbanFeature = data.features.find(f => {
-                    const name = f.properties.Name || "";
-                    return name.toLowerCase().includes("paxbán") || name.toLowerCase().includes("paxban");
-                });
-                
-                const paxbanLayer = L.geoJSON(data, {
-                    filter: function(feature) {
-                        const name = feature.properties.Name || "";
-                        return name.toLowerCase().includes("paxbán") || name.toLowerCase().includes("paxban");
-                    },
-                    style: function(feature) {
-                        return {
-                            color: "#2e7d32",       // Límite en Verde Bosque
-                            weight: 4,              // Grosor técnico
-                            opacity: 1,
-                            fillOpacity: 0          // SIN FONDO (Transparente)
-                        };
-                    },
-                    onEachFeature: function(feature, layer) {
-                        layer.bindPopup("<b>UMF Paxbán</b><br>Zona de Relieve");
-                    }
-                }).addTo(map);
-
-                console.log("✅ Capa Paxbán cargada.");
-            })
-            .catch(error => console.error("Error cargando el GeoJSON:", error));
-
-        // Función para filtrar y mostrar puntos
-        window.filtrarPuntos = function(horas) {
-            if (activeLine) {
-                map.removeLayer(activeLine);
-                activeLine = null;
-            }
+        // --- 6. DATOS DE INCENDIOS ---
+        function renderPuntos() {
+            if (activeLine) { map.removeLayer(activeLine); activeLine = null; }
             incendiosLayer.clearLayers();
             
             allIncendios.forEach(p => {
-                if (p.horas <= horas) {
-                    const marker = L.circleMarker([p.lat, p.lon], {
-                        radius: 8,
-                        fillColor: p.color,
-                        color: "#fff",
-                        weight: 1,
-                        opacity: 1,
-                        fillOpacity: 0.8
-                    });
+                // Recuperamos el color original del historial (p.color) en lugar de forzarlo
+                const color = p.color || (p.alerta ? "#ef4444" : (p.pre_alerta ? "#f59e0b" : "#10b981"));
+                const marker = L.circleMarker([p.lat, p.lon], { radius: 8, fillColor: color, color: "#fff", weight: 2, opacity: 1, fillOpacity: 0.9 });
 
-                    let popupContent = `
-                        <div style="font-family: sans-serif; min-width: 150px;">
-                            <h6 style="margin:0; color:${p.color === 'red' ? 'red' : 'orange'};">🔥 Foco Detectado</h6>
-                            <hr style="margin:5px 0;">
-                            <b>Satélite:</b> ${p.sat}<br>
-                            <b>Fecha:</b> ${p.fecha}<br>
-                            <b>Ubicación:</b> ${p.concesion}<br>
-                            ${p.dist_info ? `<b>Distancia:</b> ${p.dist_info}<br>` : ''}
-                            ${p.dist_campamento !== 'N/A' ? `<b>Ref:</b> ${p.dist_campamento}` : ''}
-                        </div>
-                    `;
-                    marker.bindPopup(popupContent);
+                marker.bindPopup(`
+                    <div style="font-family:sans-serif; min-width: 150px;">
+                        <h6 style="color:${color}; border-bottom:1px solid #ddd; padding-bottom:5px;">🔥 Detección Satelital</h6>
+                        <b>Satélite:</b> ${p.sat}<br>
+                        <b>Fecha:</b> ${p.fecha}<br>
+                        <b>Zona:</b> ${p.concesion}<br>
+                        ${p.dist_info ? `<b>Distancia:</b> ${p.dist_info}` : ''}
+                    </div>
+                `);
 
-                    // Manejar clic en el marcador
-                    marker.on('click', function(e) {
-                        // Evitar que el clic llegue al mapa base (previene zooms accidentales)
-                        L.DomEvent.stopPropagation(e);
+                // Línea interactiva
+                marker.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+                    if (activeLine) {
+                        const cur = activeLine.getLatLngs();
+                        if (cur[0].lat === p.lat && cur[0].lng === p.lon) { map.removeLayer(activeLine); activeLine = null; map.closePopup(); return; }
+                        map.removeLayer(activeLine);
+                    }
+                    if (paxbanTurfFeature || afisapTurfFeature) {
+                        const from = turf.point([p.lon, p.lat]);
+                        let minDist = Infinity, bestSnapped = null;
+                        
+                        [paxbanTurfFeature, afisapTurfFeature].forEach(f => {
+                            if (!f) return;
+                            const snapped = turf.nearestPointOnLine(turf.polygonToLine(f), from);
+                            const d = turf.distance(from, snapped);
+                            if (d < minDist) { minDist = d; bestSnapped = snapped; }
+                        });
 
-                        if (typeof turf === 'undefined') {
-                            console.error("❌ Turf.js no se ha cargado. La línea de distancia no funcionará.");
-                            return;
+                        if (bestSnapped) {
+                            let distLabel = p.dist_info ? p.dist_info.match(/(\d+)/)[0] + " m" : Math.round(turf.distance(from, bestSnapped, {units: 'kilometers'}) * 1000) + " m";
+                            activeLine = L.polyline([[p.lat, p.lon], [bestSnapped.geometry.coordinates[1], bestSnapped.geometry.coordinates[0]]], { color: "#ff9800", weight: 2, dashArray: '5, 5' });
+                            activeLine.bindTooltip(distLabel, { permanent: true, direction: 'center', className: 'dist-label' }).addTo(map);
                         }
-
-                        let esMismoPunto = false;
-
-                        // 1. Limpiar línea anterior y verificar si es el mismo punto (Toggle)
-                        if (activeLine) {
-                            const currentCoords = activeLine.getLatLngs();
-                            esMismoPunto = (currentCoords[0].lat === p.lat && currentCoords[0].lng === p.lon);
-                            
-                            map.removeLayer(activeLine);
-                            activeLine = null;
-                        }
-
-                        if (esMismoPunto) {
-                            map.closePopup();
-                            return; // Salimos (Toggle Off)
-                        }
-
-                        // 2. Trazar nueva línea negra si el polígono de Paxbán está cargado
-                        if (paxbanFeature) {
-                            try {
-                                const from = turf.point([p.lon, p.lat]);
-                                const line = turf.polygonToLine(paxbanFeature);
-                                const snapped = turf.nearestPointOnLine(line, from);
-                                
-                                if (snapped && snapped.geometry) {
-                                    // Priorizar la distancia oficial calculada en Python (GTM) para que coincida con el popup
-                                    let distLabel = "";
-                                    if (p.dist_info) {
-                                        const match = p.dist_info.match(/(\d+)/);
-                                        if (match) {
-                                            distLabel = parseInt(match[0]).toLocaleString('en-US') + " m";
-                                        }
-                                    }
-                                    
-                                    if (!distLabel) {
-                                        const distRaw = turf.distance(from, snapped, {units: 'kilometers'}) * 1000;
-                                        distLabel = Math.round(distRaw).toLocaleString('en-US') + " m";
-                                    }
-                                    
-                                    activeLine = L.polyline([
-                                        [p.lat, p.lon],
-                                        [snapped.geometry.coordinates[1], snapped.geometry.coordinates[0]]
-                                    ], {
-                                        color: '#000000', // Línea Negra
-                                        weight: 2,
-                                        dashArray: '5, 5',
-                                        opacity: 0.9
-                                    });
-
-                                    // Añadir etiqueta de distancia en el centro de la línea
-                                    activeLine.bindTooltip(distLabel, {
-                                        permanent: true,
-                                        direction: 'center',
-                                        className: 'dist-label'
-                                    });
-
-                                    activeLine.addTo(map);
-                                }
-                            } catch (err) {
-                                console.error("Error al calcular distancia visual:", err);
-                            }
-                        }
-
-                        // 3. Centrar mapa y abrir información
-                        map.panTo([p.lat, p.lon]);
-                        marker.openPopup();
-                    });
-                    
-                    incendiosLayer.addLayer(marker);
-                }
+                    }
+                    map.panTo([p.lat, p.lon]); marker.openPopup();
+                });
+                
+                incendiosLayer.addLayer(marker);
             });
-        };
+        }
 
-        // Cargar Puntos de Incendio
         fetch('incendios.json?t=' + new Date().getTime())
-            .then(response => response.json())
-            .then(puntos => {
-                console.log("🔥 Puntos de calor cargados:", puntos.length);
-                allIncendios = puntos;
-                filtrarPuntos(72); // Mostrar todos por defecto (72h)
-            });
+            .then(res => res.json())
+            .then(data => { allIncendios = data; renderPuntos(); })
+            .catch(e => console.error(e));
 
-        // Leyenda de colores
-        const legend = L.control({position: 'bottomright'});
-        legend.onAdd = function (map) {
-            const div = L.DomUtil.create('div', 'legend');
-            div.innerHTML += '<b>Antigüedad</b><br>';
-            div.innerHTML += '<i style="background: red"></i> < 24h<br>';
-            div.innerHTML += '<i style="background: orange"></i> 24h - 48h<br>';
-            div.innerHTML += '<i style="background: yellow"></i> 48h - 72h<br>';
-            return div;
-        };
-        legend.addTo(map);
-
-        // Control de Filtros
-        var filterControl = L.control({position: 'topright'});
-        filterControl.onAdd = function (map) {
-            var div = L.DomUtil.create('div', 'filter-control');
-            div.innerHTML = '<b>Filtrar por Antigüedad</b><br>' +
-                '<label><input type="radio" name="filtro_horas" value="24" onclick="filtrarPuntos(24)"> < 24h (Rojo)</label><br>' +
-                '<label><input type="radio" name="filtro_horas" value="48" onclick="filtrarPuntos(48)"> < 48h (Naranja)</label><br>' +
-                '<label><input type="radio" name="filtro_horas" value="72" onclick="filtrarPuntos(72)" checked> < 72h (Amarillo)</label>';
-            L.DomEvent.disableClickPropagation(div);
-            return div;
-        };
-        filterControl.addTo(map);
-
-        // Cargar hora de última actualización
-        fetch('metadata.json?t=' + new Date().getTime())
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('last-updated-label').innerText = "Última actualización: " + data.last_updated;
+        // --- 7. ANOMALÍAS DE IA (BOTADOS/FUEGO) ---
+        let anomaliasLayer = L.layerGroup().addTo(map);
+        
+        fetch('anomalias.geojson?t=' + new Date().getTime())
+            .then(res => {
+                if (!res.ok) throw new Error('No hay anomalías');
+                return res.json();
             })
-            .catch(err => console.log("Esperando datos de actualización..."));
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function(feature) {
+                        return {
+                            color: "#ef4444", // Borde Rojo Peligro
+                            weight: 3,        // Grosor
+                            fillOpacity: 0.0, // Sin relleno
+                            dashArray: '5, 5', // Línea punteada para resaltar
+                            className: 'pulse-marker' // Mantiene la animación si existe
+                        };
+                    },
+                    onEachFeature: function(feature, layer) {
+                        layer.bindPopup(`<div style="text-align:center; min-width:150px;">
+                            <h6 style="color:#ef4444; margin-bottom:5px;"><b>⚠️ ALERTA IA</b></h6>
+                            <span style="font-size:0.85rem; color:#f59e0b;"><b>${feature.properties.type || 'Botado Confirmado'}</b></span><br>
+                            <span style="font-size:0.75rem; color:#ccc;">Detectado el: ${feature.properties.date}</span>
+                        </div>`);
+                    }
+                }).addTo(anomaliasLayer);
+                
+                L.control.layers(null, {"⚠️ Alertas IA (Anomalías)": anomaliasLayer}, {position: 'topright'}).addTo(map);
+                console.log(`¡Cuidado! Se cargaron ${data.features.length} puntos de anomalía forestal.`);
+            })
+            .catch(e => console.log("IA: Escaneo limpio, sin anomalías activas."));
+            
     </script>
 </body>
 </html>
