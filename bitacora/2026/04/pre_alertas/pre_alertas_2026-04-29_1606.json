@@ -1,0 +1,72 @@
+[
+  {
+    "lat": 17.84352,
+    "lon": -90.2673,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "29/04/2026 14:50 (Hora GT)",
+    "horas": 1.252195586388889,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "524660.86 E, 1973283.42 N",
+    "dist_info": "3182 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.28934,
+    "lon": -90.42465,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "29/04/2026 13:02 (Hora GT)",
+    "horas": 3.0655221950000002,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "508009.69 E, 1911947.76 N",
+    "dist_info": "8653 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.83281,
+    "lon": -90.39204,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "29/04/2026 13:02 (Hora GT)",
+    "horas": 3.0658315641666665,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "511441.94 E, 1972086.25 N",
+    "dist_info": "2364 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.83657,
+    "lon": -90.39277,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "29/04/2026 13:02 (Hora GT)",
+    "horas": 3.065839119444444,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "511364.34 E, 1972502.27 N",
+    "dist_info": "2783 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.8574,
+    "lon": -90.40672,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "29/04/2026 13:02 (Hora GT)",
+    "horas": 3.065866888611111,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "509884.75 E, 1974806.45 N",
+    "dist_info": "5476 metros del l\u00edmite Noroeste",
+    "dist_campamento": "N/A"
+  }
+]
