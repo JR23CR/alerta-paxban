@@ -1,0 +1,44 @@
+[
+  {
+    "lat": 17.84103,
+    "lon": -90.1768,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "07/05/2026 02:22 (Hora GT)",
+    "horas": 1.305917183888889,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "534252.33 E, 1973022.14 N",
+    "dist_info": "2845 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.84566,
+    "lon": -90.17358,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "07/05/2026 00:59 (Hora GT)",
+    "horas": 2.697068852222222,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "534592.69 E, 1973535.08 N",
+    "dist_info": "3358 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.84608,
+    "lon": -90.17743,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_NOAA20_NRT",
+    "fecha": "07/05/2026 00:59 (Hora GT)",
+    "horas": 2.6970768444444446,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "534184.59 E, 1973580.85 N",
+    "dist_info": "3404 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  }
+]
