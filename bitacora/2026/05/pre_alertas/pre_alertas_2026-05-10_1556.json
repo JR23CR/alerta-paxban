@@ -1,0 +1,58 @@
+[
+  {
+    "lat": 17.40471,
+    "lon": -90.41853,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "10/05/2026 15:16 (Hora GT)",
+    "horas": 0.6588308575,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "508654.84 E, 1924713.83 N",
+    "dist_info": "7270 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.41213,
+    "lon": -90.42908,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "10/05/2026 15:16 (Hora GT)",
+    "horas": 0.6588363008333333,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "507533.77 E, 1925534.42 N",
+    "dist_info": "8402 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.41345,
+    "lon": -90.41992,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "10/05/2026 15:16 (Hora GT)",
+    "horas": 0.6588417736111112,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "508506.77 E, 1925680.86 N",
+    "dist_info": "7431 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.8394,
+    "lon": -90.27705,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "10/05/2026 15:16 (Hora GT)",
+    "horas": 0.6588839661111111,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "523628.12 E, 1972826.25 N",
+    "dist_info": "2744 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  }
+]
