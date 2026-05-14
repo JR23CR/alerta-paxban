@@ -1,0 +1,58 @@
+[
+  {
+    "lat": 17.40874,
+    "lon": -90.40945,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "14/05/2026 13:01 (Hora GT)",
+    "horas": 0.9771962266666666,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "509619.23 E, 1925160.19 N",
+    "dist_info": "6312 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.40946,
+    "lon": -90.40554,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "14/05/2026 13:01 (Hora GT)",
+    "horas": 0.9772002480555555,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "510034.55 E, 1925240.06 N",
+    "dist_info": "5898 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.41287,
+    "lon": -90.41025,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "14/05/2026 13:01 (Hora GT)",
+    "horas": 0.9772042658333333,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "509534.03 E, 1925617.14 N",
+    "dist_info": "6403 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.41359,
+    "lon": -90.40634,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "14/05/2026 13:01 (Hora GT)",
+    "horas": 0.9772082736111111,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "509949.34 E, 1925697.01 N",
+    "dist_info": "5989 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  }
+]
