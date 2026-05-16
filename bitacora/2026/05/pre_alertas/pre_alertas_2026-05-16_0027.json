@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.40884,
+    "lon": -90.40872,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "15/05/2026 15:10 (Hora GT)",
+    "horas": 9.281116692777777,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "509696.77 E, 1925171.29 N",
+    "dist_info": "6235 metros del l\u00edmite Oeste",
+    "dist_campamento": "N/A"
+  }
+]
