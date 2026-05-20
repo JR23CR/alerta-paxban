@@ -1,0 +1,72 @@
+[
+  {
+    "lat": 17.25427,
+    "lon": -90.38885,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "19/05/2026 13:08 (Hora GT)",
+    "horas": 16.748852683611112,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "511817.47 E, 1908069.09 N",
+    "dist_info": "8608 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.25496,
+    "lon": -90.38622,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "19/05/2026 13:08 (Hora GT)",
+    "horas": 16.74885669777778,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "512097.04 E, 1908145.60 N",
+    "dist_info": "8413 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.25508,
+    "lon": -90.3841,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "19/05/2026 13:08 (Hora GT)",
+    "horas": 16.748860735833333,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "512322.43 E, 1908159.02 N",
+    "dist_info": "8304 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.25933,
+    "lon": -90.40458,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "19/05/2026 13:08 (Hora GT)",
+    "horas": 16.748866734444444,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "510144.77 E, 1908628.09 N",
+    "dist_info": "9057 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.25993,
+    "lon": -90.40189,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "19/05/2026 13:08 (Hora GT)",
+    "horas": 16.748870789722222,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "510430.73 E, 1908694.62 N",
+    "dist_info": "8828 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  }
+]
