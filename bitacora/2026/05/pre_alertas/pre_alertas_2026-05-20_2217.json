@@ -1,0 +1,72 @@
+[
+  {
+    "lat": 17.2532,
+    "lon": -90.39142,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "20/05/2026 15:04 (Hora GT)",
+    "horas": 7.216854600833334,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "511544.29 E, 1907950.54 N",
+    "dist_info": "8842 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.25602,
+    "lon": -90.39738,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "20/05/2026 15:04 (Hora GT)",
+    "horas": 7.2168648808333336,
+    "concesion": "Cerca de Concesi\u00f3n Comunitaria Afisap",
+    "gtm": "510910.45 E, 1908262.23 N",
+    "dist_info": "8902 metros del l\u00edmite Suroeste",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.83094,
+    "lon": -90.34494,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "20/05/2026 15:04 (Hora GT)",
+    "horas": 7.216930923055556,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "516433.93 E, 1971882.83 N",
+    "dist_info": "1991 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.89529,
+    "lon": -90.36767,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "20/05/2026 15:04 (Hora GT)",
+    "horas": 7.216946090277778,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "514019.86 E, 1979001.75 N",
+    "dist_info": "9149 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  },
+  {
+    "lat": 17.89702,
+    "lon": -90.35683,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "20/05/2026 15:04 (Hora GT)",
+    "horas": 7.216951157222222,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "515168.17 E, 1979194.04 N",
+    "dist_info": "9323 metros del l\u00edmite Norte",
+    "dist_campamento": "N/A"
+  }
+]
