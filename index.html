@@ -162,7 +162,7 @@
                 <div class="menu-title">Filtros de Polígonos (Capas)</div>
                 <div class="form-check form-switch mb-2">
                     <input class="form-check-input bg-success border-success" type="checkbox" id="toggleConcesiones" checked>
-                    <label class="form-check-label" for="toggleConcesiones">Mostrar Todas las Concesiones</label>
+                    <label class="form-check-label" for="toggleConcesiones">Mostrar Límite de Paxbán</label>
                 </div>
             </div>
 
@@ -421,32 +421,29 @@
         let incendiosLayer = L.layerGroup().addTo(map);
         
         let paxbanTurfFeature = null;
-        let afisapTurfFeature = null;
         let activeLine = null;
         let allIncendios = [];
 
-        // Cargar GeoJSON de TODAS las concesiones
+        // Cargar GeoJSON solo del polígono de Paxbán
         fetch('concesiones1.geojson?t=' + new Date().getTime())
             .then(res => res.json())
             .then(data => {
                 data.features.forEach(f => {
                     const name = f.properties.Name || "Concesión";
                     const isPaxban = name.toLowerCase().includes("paxb");
-                    const isAfisap = name.toLowerCase().includes("afis");
                     
-                    if (isPaxban) paxbanTurfFeature = f;
-                    if (isAfisap) afisapTurfFeature = f;
+                    if (!isPaxban) return;
 
-                    const style = { 
-                        color: "#000000", // Línea negra para todos
-                        weight: 2, 
-                        opacity: 1.0, 
-                        fillOpacity: 0.0  // Sin relleno (totalmente transparente)
-                    };
-                    
+                    paxbanTurfFeature = f;
+
                     L.geoJSON(f, { 
-                        style: style, 
-                        pmIgnore: true, // Evita que Geoman edite esta capa
+                        style: { 
+                            color: "#000000",
+                            weight: 2, 
+                            opacity: 1.0, 
+                            fillOpacity: 0.0
+                        }, 
+                        pmIgnore: true,
                         onEachFeature: (f, l) => l.bindPopup(`<b>${name}</b>`) 
                     }).addTo(allConcesionesLayer);
                 });
@@ -486,11 +483,11 @@
                         if (cur[0].lat === p.lat && cur[0].lng === p.lon) { map.removeLayer(activeLine); activeLine = null; map.closePopup(); return; }
                         map.removeLayer(activeLine);
                     }
-                    if (paxbanTurfFeature || afisapTurfFeature) {
+                    if (paxbanTurfFeature) {
                         const from = turf.point([p.lon, p.lat]);
                         let minDist = Infinity, bestSnapped = null;
                         
-                        [paxbanTurfFeature, afisapTurfFeature].forEach(f => {
+                        [paxbanTurfFeature].forEach(f => {
                             if (!f) return;
                             const snapped = turf.nearestPointOnLine(turf.polygonToLine(f), from);
                             const d = turf.distance(from, snapped);

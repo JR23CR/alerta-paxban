@@ -486,7 +486,7 @@ def generar_galeria_html():
     except Exception as e:
         print(f" Error generando galera: {e}", file=sys.stderr)
 
-def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1, basemap_provider=cx.providers.Esri.NatGeoWorldMap, is_pre_alert_map=False, draw_buffer=False):
+def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1, basemap_provider=cx.providers.Esri.NatGeoWorldMap, is_pre_alert_map=False, draw_buffer=False, figsize=(10, 10), marker_size=50):
     """Genera imagen PNG del mapa."""
     if not Transformer: return None
     try:
@@ -497,14 +497,16 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
         concesiones_monitoreo = {}
         if concesiones:
             for nombre, poly in concesiones.items():
-                if "Paxbán" in nombre or "Afisap" in nombre:
+                if "Paxbán" in nombre:
                     concesiones_monitoreo[nombre] = poly
+
+        paxban_poly = list(concesiones_monitoreo.values())[0] if concesiones_monitoreo else None
 
         for p in puntos:
             x, y = transformer.transform(p['lon'], p['lat'])
             xs.append(x); ys.append(y); colores.append(p['color'])
         
-        fig, ax = plt.subplots(figsize=(10, 10))
+        fig, ax = plt.subplots(figsize=figsize)
         
         if draw_buffer and paxban_poly:
             buffer_poly = paxban_poly.buffer(0.09) # Approx 10km
@@ -530,7 +532,7 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
                         x, y = p_sub.exterior.xy
                         ax.plot(x, y, color=color, linewidth=2, zorder=1)
 
-        if xs: ax.scatter(xs, ys, c=colores, s=50, edgecolors='white', zorder=2)
+        if xs: ax.scatter(xs, ys, c=colores, s=marker_size, edgecolors='white', linewidths=0.3, zorder=2)
 
         if is_pre_alert_map and len(puntos) == 1 and paxban_poly:
             punto_prealerta = puntos[0]
@@ -557,9 +559,9 @@ def generar_mapa_imagen(puntos, concesiones=None, center_point=None, buffer=0.1,
             minx, miny = transformer.transform(lon - buffer, lat - buffer)
             maxx, maxy = transformer.transform(lon + buffer, lat + buffer)
         elif draw_buffer and paxban_poly:
-            poly_3857 = transform(transformer.transform, paxban_poly)
-            bounds = poly_3857.buffer(0.1).bounds # Usar un buffer un poco más grande para el view
-            minx, miny, maxx, maxy = bounds
+            view_poly = paxban_poly.buffer(0.13) # ~14km para ver toda la zona de amortiguamiento
+            view_3857 = transform(transformer.transform, view_poly)
+            minx, miny, maxx, maxy = view_3857.bounds
         else:
             minx, miny = transformer.transform(-91.5, 15.8)
             maxx, maxy = transformer.transform(-89.0, 17.9)
@@ -601,6 +603,10 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
 
         # --- ENCABEZADO ---
         section = doc.sections[0]
+        section.top_margin = Inches(0.6)
+        section.bottom_margin = Inches(0.6)
+        section.left_margin = Inches(0.6)
+        section.right_margin = Inches(0.6)
         header = section.header
         header_para = header.paragraphs[0]
         header_para.text = "SISTEMA DE ALERTA TEMPRANA PAXBAN"
@@ -687,7 +693,8 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
         doc.add_paragraph(metodo_text).alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
         # --- RESULTADOS ---
-        doc.add_heading('3. Resultados del Monitoreo Mensual', level=1)
+        heading3 = doc.add_heading('3. Resultados del Monitoreo Mensual', level=1)
+        heading3.paragraph_format.keep_with_next = True
 
         if not fires_list and not pre_alerts_list:
             resumen_p = doc.add_paragraph(
@@ -702,8 +709,9 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                 f"Durante el periodo correspondiente al mes de {mes_nombre}, el sistema de monitoreo satelital registró la siguiente actividad térmica en el área de interés y su zona de amortiguamiento. A continuación se presenta el desglose:"
             )
             resumen_p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        resumen_p.paragraph_format.keep_with_next = True
 
-        doc.add_heading('3.1. Alertas de Incendio (Interior de la Concesión)', level=2)
+        heading31 = doc.add_heading('3.1. Alertas de Incendio (Interior de la Concesión)', level=2)
         if fires_list:
             table = doc.add_table(rows=0, cols=2)
             table.autofit = False
@@ -713,13 +721,13 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
 
             for i in range(0, len(fires_list), 2):
                 row_cells = table.add_row().cells
+                table.rows[-1].allow_break_across_pages = False
                 
                 # --- Evento 1 ---
                 fire1 = fires_list[i]
                 cell1 = row_cells[0]
                 p1 = cell1.paragraphs[0] if cell1.paragraphs else cell1.add_paragraph()
                 p1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p1.paragraph_format.keep_with_next = True
                 run1 = p1.add_run(f"Evento No. {i+1} - {fire1.get('fecha', 'N/A')}\n")
                 run1.bold = True
                 p1.add_run(f"Satélite: {fire1.get('sat', 'Desconocido')}\n")
@@ -741,7 +749,6 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
                     cell2 = row_cells[1]
                     p2 = cell2.paragraphs[0] if cell2.paragraphs else cell2.add_paragraph()
                     p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                    p2.paragraph_format.keep_with_next = True
                     run2 = p2.add_run(f"Evento No. {i+2} - {fire2.get('fecha', 'N/A')}\n")
                     run2.bold = True
                     p2.add_run(f"Satélite: {fire2.get('sat', 'Desconocido')}\n")
@@ -772,7 +779,7 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
         p_buffer_desc.add_run("pre-alerta.").italic = True
 
         try:
-            buffer_map_bytes = generar_mapa_imagen([], concesiones, draw_buffer=True, basemap_provider=cx.providers.Esri.WorldImagery)
+            buffer_map_bytes = generar_mapa_imagen([], concesiones, draw_buffer=True, basemap_provider=cx.providers.Esri.WorldImagery, figsize=(12, 8))
             if buffer_map_bytes:
                 p_map = doc.add_paragraph()
                 p_map.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -781,59 +788,117 @@ def crear_informe_word(ruta_salida, mes_nombre, anio, fires_list, map_images, co
         except Exception as e:
             print(f" Error generando mapa de zona de amortiguamiento: {e}")
 
+        # --- MAPA GENERAL DE TODOS LOS PUNTOS DEL MES ---
+        todos_puntos = []
+        for f in (fires_list or []):
+            todos_puntos.append({"lat": f["lat"], "lon": f["lon"], "color": "red"})
+        for p in (pre_alerts_list or []):
+            todos_puntos.append({"lat": p["lat"], "lon": p["lon"], "color": "red"})
+
+        if todos_puntos:
+            h321 = doc.add_heading('3.2.1 Vista General de Puntos de Calor del Mes', level=3)
+            h321.paragraph_format.keep_with_next = True
+            p_vista = doc.add_paragraph(
+                "El siguiente mapa presenta todos los puntos de calor detectados durante el mes, "
+                "tanto dentro de la concesión (alertas) como en la zona de amortiguamiento (pre-alertas), "
+                "mostrados como pequeños puntos rojos para una referencia visual general."
+            )
+            p_vista.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+            p_vista.paragraph_format.keep_with_next = True
+            try:
+                vista_bytes = generar_mapa_imagen(
+                    todos_puntos, concesiones, draw_buffer=True,
+                    basemap_provider=cx.providers.Esri.WorldImagery,
+                    figsize=(9, 7), marker_size=12
+                )
+                if vista_bytes:
+                    p_img = doc.add_paragraph()
+                    p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    r = p_img.add_run()
+                    r.add_picture(BytesIO(vista_bytes), width=Inches(5.0))
+            except Exception as e:
+                print(f" Error generando mapa general de puntos: {e}")
+
         if pre_alerts_list:
             doc.add_heading('3.3. Puntos de Pre-Alerta en Zona de Amortiguamiento', level=2)
-            table_pre = doc.add_table(rows=0, cols=2)
-            table_pre.autofit = False
-            table_pre.allow_autofit = False
-            table_pre.columns[0].width = Inches(3.0)
-            table_pre.columns[1].width = Inches(3.0)
 
-            for i in range(0, len(pre_alerts_list), 2):
-                row_cells = table_pre.add_row().cells
-                
-                # --- Pre-Alerta 1 ---
-                pre_alert1 = pre_alerts_list[i]
-                cell1 = row_cells[0]
-                p1 = cell1.paragraphs[0] if cell1.paragraphs else cell1.add_paragraph()
-                p1.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                p1.paragraph_format.keep_with_next = True
-                run1 = p1.add_run(f"Pre-Alerta No. {i+1} - {pre_alert1.get('fecha', 'N/A')}\n")
-                run1.bold = True
-                p1.add_run(f"Satélite: {pre_alert1.get('sat', 'Desconocido')}\n")
-                p1.add_run(f"Ubicación Referencial: {pre_alert1.get('dist_info', 'N/A')}\n")
-                p1.add_run(f"Coordenadas GTM: {pre_alert1.get('gtm', 'N/A')}\n")
+            def extraer_distancia(dist_info):
+                """Extrae la distancia en metros del string 'XXXX metros del límite ...'"""
+                if not dist_info:
+                    return 99999
+                import re
+                m = re.search(r'(\d+)\s*metros', dist_info)
+                return int(m.group(1)) if m else 99999
 
-                try:
-                    img_focused1 = generar_mapa_imagen([pre_alert1], concesiones, center_point=(pre_alert1['lon'], pre_alert1['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery, is_pre_alert_map=True)
-                    if img_focused1:
-                        pic_para1 = cell1.add_paragraph()
-                        pic_para1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                        run_pic1 = pic_para1.add_run()
-                        run_pic1.add_picture(BytesIO(img_focused1), width=Inches(2.8))
-                except: pass
+            # Preservar índice original para numeración
+            pre_alerts_indexed = list(enumerate(pre_alerts_list, 1))
+            cercanos = [(n, p) for n, p in pre_alerts_indexed if extraer_distancia(p.get('dist_info')) <= 3000]
+            intermedios = [(n, p) for n, p in pre_alerts_indexed if 3000 < extraer_distancia(p.get('dist_info')) <= 6500]
+            lejanos = [(n, p) for n, p in pre_alerts_indexed if extraer_distancia(p.get('dist_info')) > 6500]
 
-                # --- Pre-Alerta 2 (si existe) ---
-                if i + 1 < len(pre_alerts_list):
-                    pre_alert2 = pre_alerts_list[i+1]
-                    cell2 = row_cells[1]
-                    p2 = cell2.paragraphs[0] if cell2.paragraphs else cell2.add_paragraph()
-                    p2.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-                    p2.paragraph_format.keep_with_next = True
-                    run2 = p2.add_run(f"Pre-Alerta No. {i+2} - {pre_alert2.get('fecha', 'N/A')}\n")
-                    run2.bold = True
-                    p2.add_run(f"Satélite: {pre_alert2.get('sat', 'Desconocido')}\n")
-                    p2.add_run(f"Ubicación Referencial: {pre_alert2.get('dist_info', 'N/A')}\n")
-                    p2.add_run(f"Coordenadas GTM: {pre_alert2.get('gtm', 'N/A')}\n")
+            categorias = [
+                ("3.3.1. Puntos de Pre-Alerta Cercanos al Polígono", cercanos,
+                 "Puntos de calor detectados a menos de 3 km del perímetro de la concesión. "
+                 "Estos eventos requieren atención prioritaria por su proximidad al área forestal."),
+                ("3.3.2. Puntos de Pre-Alerta a Distancia Intermedia", intermedios,
+                 "Puntos de calor localizados entre 3 y 6.5 km del límite de Paxbán. "
+                 "Se mantienen bajo vigilancia constante ante posible evolución."),
+                ("3.3.3. Puntos de Pre-Alerta Lejanos", lejanos,
+                 "Puntos de calor en el extremo de la zona de amortiguamiento, entre 6.5 y 10 km del polígono. "
+                 "Su riesgo de afectación directa es menor, pero se monitorean por su potencial de desplazamiento."),
+            ]
 
-                    try:
-                        img_focused2 = generar_mapa_imagen([pre_alert2], concesiones, center_point=(pre_alert2['lon'], pre_alert2['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery, is_pre_alert_map=True)
-                        if img_focused2:
-                            pic_para2 = cell2.add_paragraph()
-                            pic_para2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                            run_pic2 = pic_para2.add_run()
-                            run_pic2.add_picture(BytesIO(img_focused2), width=Inches(2.8))
-                    except: pass
+            for titulo, items, descripcion in categorias:
+                if not items:
+                    continue
+                doc.add_page_break()
+                h_cat = doc.add_heading(titulo, level=3)
+                h_cat.paragraph_format.keep_with_next = True
+                p_cat = doc.add_paragraph(descripcion)
+                p_cat.paragraph_format.keep_with_next = True
+
+                for i in range(0, len(items), 6):
+                    if i > 0:
+                        doc.add_page_break()
+                    items_en_pagina = min(6, len(items) - i)
+                    filas = (items_en_pagina + 1) // 2
+                    table_pre = doc.add_table(rows=filas, cols=2)
+                    table_pre.autofit = False
+                    table_pre.allow_autofit = False
+                    table_pre.columns[0].width = Inches(3.5)
+                    table_pre.columns[1].width = Inches(3.5)
+
+                    for r in range(filas):
+                        table_pre.rows[r].allow_break_across_pages = False
+
+                    for j in range(items_en_pagina):
+                        num, pre_alert = items[i + j]
+                        row_idx = j // 2
+                        col_idx = j % 2
+                        cell = table_pre.rows[row_idx].cells[col_idx]
+
+                        p_info = cell.paragraphs[0] if cell.paragraphs else cell.add_paragraph()
+                        p_info.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                        p_info.paragraph_format.keep_with_next = True
+                        p_info.paragraph_format.space_after = Pt(2)
+                        p_info.paragraph_format.space_before = Pt(0)
+                        p_info.paragraph_format.line_spacing = Pt(11)
+                        run_titulo = p_info.add_run(f"Pre-Alerta No. {num} - {pre_alert.get('fecha', 'N/A')}\n")
+                        run_titulo.bold = True
+                        run_titulo.font.size = Pt(8)
+                        p_info.add_run(f"Satélite: {pre_alert.get('sat', 'Desconocido')}  |  GTM: {pre_alert.get('gtm', 'N/A')}\n").font.size = Pt(7)
+                        p_info.add_run(f"Distancia: {pre_alert.get('dist_info', 'N/A')}").font.size = Pt(7)
+
+                        try:
+                            img_bytes = generar_mapa_imagen([pre_alert], concesiones, center_point=(pre_alert['lon'], pre_alert['lat']), buffer=0.08, basemap_provider=cx.providers.Esri.WorldImagery, is_pre_alert_map=True, figsize=(5.5, 4.4))
+                            if img_bytes:
+                                pic_para = cell.add_paragraph()
+                                pic_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                                pic_para.paragraph_format.space_before = Pt(2)
+                                pic_para.paragraph_format.space_after = Pt(2)
+                                run_pic = pic_para.add_run()
+                                run_pic.add_picture(BytesIO(img_bytes), width=Inches(3.0))
+                        except: pass
         # --- ANEXO GRÁFICO ---
         if map_images:
             doc.add_page_break()
@@ -888,7 +953,11 @@ def generar_reporte_mensual(concesiones):
         nombre_mes = MESES_ES.get(mes, mes)
         
         raiz = f"Reporte_{mes}_{anio}"
-        if os.path.exists(raiz): shutil.rmtree(raiz)
+        if os.path.exists(raiz):
+            try:
+                shutil.rmtree(raiz)
+            except PermissionError:
+                os.system(f'rmdir /s /q "{raiz}"')
         os.makedirs(raiz)
         
         # Copiar carpetas
@@ -932,7 +1001,7 @@ def generar_reporte_mensual(concesiones):
             en_prealerta = False
             
             for nom, poly in concesiones.items():
-                if "Paxbán" in nom or "Afisap" in nom:
+                if "Paxbán" in nom:
                     if poly.contains(p):
                         en_paxban = True
                         punto['concesion_afectada'] = nom
@@ -1009,7 +1078,11 @@ def generar_reporte_mensual(concesiones):
         ruta_final = os.path.join(carpeta_destino, f"{zip_filename}.zip")
         if os.path.exists(ruta_final): os.remove(ruta_final) # Evitar error si existe
         shutil.move(f"{zip_filename}.zip", ruta_final)
-        shutil.rmtree(raiz)
+        try:
+            shutil.rmtree(raiz)
+        except PermissionError:
+            # Reintentar con fuerza bruta
+            os.system(f'rmdir /s /q "{raiz}"')
         
         print(f" ZIP creado: {ruta_final}")
         
@@ -1176,7 +1249,7 @@ def main():
                             dist_info = None
                             
                             for nom, poly in concesiones.items():
-                                if "Paxbán" in nom or "Afisap" in nom:
+                                if "Paxbán" in nom:
                                     if poly.contains(p):
                                         en_paxban = True
                                         concesion_nombre = nom
