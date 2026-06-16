@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.87248,
+    "lon": -90.42561,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "MODIS_NRT",
+    "fecha": "15/06/2026 15:10 (Hora GT)",
+    "horas": 7.946688950833334,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "507882.34 E, 1976474.26 N",
+    "dist_info": "7916 metros del l\u00edmite Noroeste",
+    "dist_campamento": "N/A"
+  }
+]
