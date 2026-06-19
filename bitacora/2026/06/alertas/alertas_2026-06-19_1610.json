@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.81332,
+    "lon": -90.30749,
+    "color": "red",
+    "alerta": true,
+    "pre_alerta": false,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "19/06/2026 13:28 (Hora GT)",
+    "horas": 2.6981410958333334,
+    "concesion": "Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "520405.06 E, 1969936.74 N",
+    "dist_info": null,
+    "dist_campamento": "3092m de La Pepesca al Noreste"
+  }
+]
