@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.84311,
+    "lon": -90.42735,
+    "color": "red",
+    "alerta": false,
+    "pre_alerta": true,
+    "sat": "VIIRS_SNPP_NRT",
+    "fecha": "01/08/2026 13:21 (Hora GT)",
+    "horas": 2.7544938922222224,
+    "concesion": "Cerca de Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "507699.23 E, 1973224.20 N",
+    "dist_info": "5642 metros del l\u00edmite Noroeste",
+    "dist_campamento": "N/A"
+  }
+]
