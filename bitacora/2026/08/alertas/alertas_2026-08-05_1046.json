@@ -1,0 +1,16 @@
+[
+  {
+    "lat": 17.79333,
+    "lon": -90.3796,
+    "color": "red",
+    "alerta": true,
+    "pre_alerta": false,
+    "sat": "MODIS_NRT",
+    "fecha": "05/08/2026 08:48 (Hora GT)",
+    "horas": 1.9673117380555556,
+    "concesion": "Concesi\u00f3n Industrial Paxb\u00e1n",
+    "gtm": "512763.19 E, 1967718.34 N",
+    "dist_info": null,
+    "dist_campamento": "4900m de La Lagartija al Suroeste"
+  }
+]
